@@ -67,6 +67,12 @@ style: |
         background-position: center;
     }
 
+     .red {
+            color: red;
+        }
+        .blue {
+            color: blue;
+        } 
     .note {
     font-size: 14px;
     color: gray;
@@ -76,15 +82,20 @@ style: |
 # Introduction of Linear Algebra for Robotics
 
 
-### <span style="color:red;">C</span>omputer <span style="color:red;">V</span>ision and <span style="color:blue;">R</span>obotics <span style="color:blue;">L</span>AB
+### <span class = "red">C</span>omputer <span class = "red">V</span>ision and <span class = "blue">R</span>obotics LAB
 
 ##
 ## Minsu Kim
+
+<div class="logo"></div>
+
 ---
 1. Scalars and Vectors
 2. Matrices
 3. Vector Products
 4. Various type of Matrices
+<div class="logo"></div>
+
 ---
 # 🔢 Scalars and Vectors
 ---
@@ -96,11 +107,11 @@ style: |
 
 # 
 
-<p class = "body"> Vector always contains <span style="color:red;">direction!</span></p>
+<p class = "body"> Vector always contains <span class = "red">direction!</span></p>
 <div class="logo"></div>
 
 ---
-# <span style="color:red;">▦</span> Matrices
+# <span class = "red">▦</span> Matrices
 ---
 
 <p class = "title"> Matrices </p> 

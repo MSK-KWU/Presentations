@@ -7,37 +7,45 @@ math: katexs
 style: |
     section{
     text-align : left;
-    font-family : "Times new Roman"
+    font-family : "Trebuchet MS"
     }
 
+
     h1 {
-        font-size: 50px;
+        font-size: 60px;
+        color:black;
         text-align: center;
-        font-family: "Times new Roman";
+        font-family: "Trebuchet MS";
     }
 
     h2 {
-        font-size: 20px;
+        font-size: 30px;
         text-align: center;
-        font-family: "Times new Roman";
-        margin: 0;
+        font-family: "Trebuchet MS";
     }
 
     h3 {
-        font-size: 15px;
+        font-size: 20px;
         text-align: center;
-        font-family: "Times new Roman";
+        font-family: "Trebuchet MS";
         margin: 0;
     }
 
-    h4 {
-        font-size: 40px;
+    .body {
+        font-size: 25px;
+        text-align: center;
+        font-family: "Trebuchet MS";
+        margin: 0;
+    }
+
+    .title {
+        font-size: 50px;
         text-align: left;
         position : absolute;
-        top : 30px;
-        left : 30px;
+        top : 40px;
+        left : 40px;
 
-        font-family: "Times new Roman";
+        font-family: "Trebuchet MS";
         margin: 0;
     }
     
@@ -47,11 +55,73 @@ style: |
         margin: 0;
     }
 
+    .logo {
+        position: absolute;
+        bottom: 1px;
+        right: 1px;
+        width: 200px;
+        height: 100px;
+        background-image: url('../lab_logo.jpg');
+        background-size: contain;
+        background-repeat: no-repeat;
+        background-position: center;
+    }
+
     .note {
     font-size: 14px;
     color: gray;
     }
 
 ---
-# Scalars, Vectors, and Matrices
+# Introduction of Linear Algebra for Robotics
+
+
+### <span style="color:red;">C</span>omputer <span style="color:red;">V</span>ision and <span style="color:blue;">R</span>obotics <span style="color:blue;">L</span>AB
+
+##
+## Minsu Kim
+---
+1. Scalars and Vectors
+2. Matrices
+3. Vector Products
+4. Various type of Matrices
+---
+# 🔢 Scalars and Vectors
+---
+<p class = "title"> Scalars and Vectors </p> 
+<p align="center">
+  <img src="./pics/Scalars_and_Vectors.jpg" width="520px" style="display:inline-block; margin-right: 20px;">
+  <img src="./pics/Scalars_and_Vectors_with_car.jpg" width="550px" style="display:inline-block;">
+</p>
+
+# 
+
+<p class = "body"> Vector always contains <span style="color:red;">direction!</span></p>
+<div class="logo"></div>
+
+---
+# <span style="color:red;">▦</span> Matrices
+---
+
+<p class = "title"> Matrices </p> 
+<div class="logo"></div>
+
+---
+
+# 🎯 Vector Products ✖️
+
+---
+
+<p class = "title"> Vector Products </p> 
+<div class="logo"></div>
+
+---
+
+# Various type of Matrices
+
+---
+
+<p class = "title"> Various type of Matrices </p> 
+
+<div class="logo"></div>
 ---

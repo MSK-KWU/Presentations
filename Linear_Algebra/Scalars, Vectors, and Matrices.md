@@ -116,10 +116,7 @@ style: |
 
 ---
 <p class = "title"> Vectors always contains the direction! </p>
-<p align="center">
-<img src="./pics/Scalars_and_Vectors_1D.jpg"  style="display:inline-block;">
-</p>
-<div class="logo"></div>
+
 
 ---
 

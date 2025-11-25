@@ -122,6 +122,16 @@ style: |
 <div class="logo"></div>
 
 ---
+<p class = "title"> Let's express in the Space! </p>
+
+<p align="center">
+<img src="./pics/Scalars_and_Vectors_1D.jpg" 
+with=""px
+ style="display:inline-block;">
+</p>
+
+
+---
 
 # <span class = "red">▦</span> Matrices
 

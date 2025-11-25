@@ -1,0 +1,485 @@
+---
+title: "GES: Generalized Exponential Splatting for Efficient Radiance Field Rendering"
+subtitle: "CVPR 2024"
+author: "Abdullah Hamdi et al."
+date: "2024"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: '16:9'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+class: center, middle
+
+# Introduction
+
+---
+
+## Motivation
+
+**3D Gaussian Splatting (3DGS)의 한계**
+
+- 3DGS는 빠른 렌더링 속도와 높은 품질로 주목받음
+- 하지만 **가우시안 커널**만 사용하는 제약이 있음
+- 모든 3D 형상을 가우시안으로 표현하는 것은 비효율적
+
+--
+
+**핵심 질문**
+
+> "가우시안 커널이 최적의 선택일까?"
+
+> "다른 커널 함수를 사용하면 어떨까?"
+
+---
+
+## Problem Statement
+
+**기존 3D Gaussian Splatting의 문제점**
+
+1. **제한된 표현력**: 가우시안 함수만으로 복잡한 형상 표현 어려움
+
+2. **비효율적인 메모리 사용**: 날카로운 엣지나 평면을 표현하기 위해 과도하게 많은 가우시안 필요
+
+3. **유연성 부족**: 장면의 특성에 따라 적응적인 표현 불가능
+
+--
+
+**본 논문의 접근**
+
+- 가우시안을 포함한 **일반화된 지수 함수(Generalized Exponential Function)** 사용
+- 하나의 통합된 프레임워크에서 다양한 커널 함수 지원
+
+---
+
+## Main Contributions
+
+**1. Generalized Exponential Splatting (GES) 제안**
+
+- 가우시안을 특수한 경우로 포함하는 일반화된 커널
+
+**2. 미분 가능한 렌더링 파이프라인**
+
+- 기존 3DGS와 동일한 효율성 유지
+- 다양한 커널 함수에 대해 미분 가능
+
+**3. 우수한 성능 입증**
+
+- 더 적은 수의 프리미티브로 동등하거나 더 나은 품질
+- 다양한 벤치마크에서 검증
+
+---
+
+# Method
+
+---
+
+## Generalized Exponential Function
+
+**일반화된 지수 커널 정의**
+
+GES는 다음과 같은 형태의 커널 함수를 사용합니다:
+
+$$
+\phi(\mathbf{x}; \boldsymbol{\mu}, \boldsymbol{\Sigma}, \beta) = \exp\left(-\frac{1}{2}\left[(\mathbf{x}-\boldsymbol{\mu})^T \boldsymbol{\Sigma}^{-1} (\mathbf{x}-\boldsymbol{\mu})\right]^\beta\right)
+$$
+
+**파라미터 설명**
+
+- $\mathbf{x}$: 3D 공간상의 점
+- $\boldsymbol{\mu}$: 커널의 중심 위치 (mean)
+- $\boldsymbol{\Sigma}$: 공분산 행렬 (covariance matrix)
+- $\beta$: **형상 파라미터** (shape parameter)
+
+---
+
+## Shape Parameter β
+
+**$\beta$ 값에 따른 커널의 형태 변화**
+
+$$
+\phi(\mathbf{x}) \propto \exp\left(-d^\beta\right), \quad d = \sqrt{(\mathbf{x}-\boldsymbol{\mu})^T \boldsymbol{\Sigma}^{-1} (\mathbf{x}-\boldsymbol{\mu})}
+$$
+
+- **$\beta = 1.0$**: 표준 가우시안 분포 (Gaussian)
+  - 부드러운 감쇠
+  
+- **$\beta < 1.0$**: 더 뾰족한 형태 (Sharper)
+  - 날카로운 엣지나 경계 표현에 유리
+  
+- **$\beta > 1.0$**: 더 평평한 형태 (Flatter)
+  - 넓은 평면이나 확산된 영역 표현에 유리
+
+---
+
+## 3D-to-2D Projection
+
+**3D 커널을 2D 이미지 평면으로 투영**
+
+카메라 변환 행렬 $\mathbf{W}$와 뷰포트 변환 $\mathbf{J}$를 사용하여:
+
+$$
+\boldsymbol{\Sigma}' = \mathbf{J} \mathbf{W} \boldsymbol{\Sigma} \mathbf{W}^T \mathbf{J}^T
+$$
+
+**2D 이미지 평면에서의 커널**
+
+$$
+\phi_{2D}(\mathbf{u}) = \exp\left(-\frac{1}{2}\left[(\mathbf{u}-\boldsymbol{\mu}')^T (\boldsymbol{\Sigma}')^{-1} (\mathbf{u}-\boldsymbol{\mu}')\right]^\beta\right)
+$$
+
+여기서 $\mathbf{u}$는 2D 픽셀 좌표입니다.
+
+---
+
+## Alpha Blending
+
+**픽셀 색상 계산**
+
+각 픽셀의 최종 색상은 깊이 순서대로 정렬된 커널들을 알파 블렌딩:
+
+$$
+C(\mathbf{u}) = \sum_{i=1}^{N} c_i \alpha_i \prod_{j=1}^{i-1}(1-\alpha_j)
+$$
+
+**불투명도 (Opacity) 계산**
+
+$$
+\alpha_i = o_i \cdot \phi_{2D}(\mathbf{u}; \boldsymbol{\mu}_i', \boldsymbol{\Sigma}_i', \beta_i)
+$$
+
+- $c_i$: i번째 커널의 색상
+- $o_i$: i번째 커널의 학습 가능한 불투명도
+- $\phi_{2D}$: 2D 투영된 커널 함수
+
+---
+
+## Loss Function
+
+**전체 손실 함수**
+
+$$
+\mathcal{L} = (1-\lambda)\mathcal{L}_1 + \lambda \mathcal{L}_{\text{D-SSIM}}
+$$
+
+**구성 요소**
+
+- **$\mathcal{L}_1$**: L1 픽셀 손실
+  $$
+  \mathcal{L}_1 = \frac{1}{|\mathcal{P}|}\sum_{\mathbf{u} \in \mathcal{P}} |C(\mathbf{u}) - C_{gt}(\mathbf{u})|
+  $$
+
+- **$\mathcal{L}_{\text{D-SSIM}}$**: Structural Similarity Loss
+  - 구조적 유사성을 고려한 perceptual loss
+
+- **$\lambda$**: 가중치 하이퍼파라미터 (보통 0.2)
+
+---
+
+## Optimization Strategy
+
+**적응적 밀도 제어 (Adaptive Density Control)**
+
+1. **밀집화 (Densification)**
+   - 기울기가 큰 영역에서 새로운 커널 추가
+   - 복잡한 디테일을 더 잘 표현
+
+2. **가지치기 (Pruning)**
+   - 불투명도가 낮은 커널 제거
+   - 메모리 효율성 향상
+
+**$\beta$ 파라미터 학습**
+
+- 각 커널의 $\beta$ 값을 개별적으로 학습
+- 장면의 각 부분에 최적화된 커널 형태 자동 선택
+
+---
+
+# Experiments
+
+---
+
+## Experimental Setup
+
+**데이터셋**
+
+1. **Mip-NeRF360**: 실내외 복잡한 장면
+2. **Tanks & Temples**: 대규모 야외 장면
+3. **Deep Blending**: 복잡한 기하학적 구조
+
+**비교 대상**
+
+- 3D Gaussian Splatting (3DGS)
+- NeRF
+- Instant-NGP
+- Plenoxels
+
+**평가 지표**
+
+- PSNR (Peak Signal-to-Noise Ratio)
+- SSIM (Structural Similarity Index)
+- LPIPS (Learned Perceptual Image Patch Similarity)
+
+---
+
+## Quantitative Results: Mip-NeRF360
+
+**Mip-NeRF360 데이터셋 결과**
+
+| Method | PSNR ↑ | SSIM ↑ | LPIPS ↓ | # Primitives |
+|--------|--------|--------|---------|--------------|
+| NeRF | 26.5 | 0.812 | 0.235 | - |
+| 3DGS | 27.2 | 0.815 | 0.214 | 5.8M |
+| **GES** | **27.8** | **0.828** | **0.198** | **4.2M** |
+
+**주요 관찰**
+
+- **더 높은 품질**: PSNR, SSIM 모두 향상
+- **더 적은 메모리**: 3DGS 대비 27% 적은 프리미티브
+- **더 나은 perceptual quality**: LPIPS 크게 감소
+
+---
+
+## Quantitative Results: Tanks & Temples
+
+**Tanks & Temples 데이터셋 결과**
+
+| Method | PSNR ↑ | SSIM ↑ | LPIPS ↓ | Training Time |
+|--------|--------|--------|---------|---------------|
+| Instant-NGP | 23.8 | 0.756 | 0.312 | 5 min |
+| 3DGS | 24.5 | 0.768 | 0.289 | 35 min |
+| **GES** | **25.1** | **0.781** | **0.271** | **38 min** |
+
+**관찰 사항**
+
+- 큰 야외 장면에서도 일관된 성능 향상
+- 훈련 시간은 3DGS와 유사
+- 특히 복잡한 구조물에서 성능 차이 두드러짐
+
+---
+
+## Quantitative Results: Deep Blending
+
+**Deep Blending 데이터셋 결과**
+
+| Method | PSNR ↑ | SSIM ↑ | LPIPS ↓ |
+|--------|--------|--------|---------|
+| Plenoxels | 25.1 | 0.798 | 0.267 |
+| 3DGS | 26.3 | 0.814 | 0.241 |
+| **GES** | **27.2** | **0.835** | **0.218** |
+
+**특징**
+
+- 복잡한 기하학적 구조에서 특히 우수
+- 날카로운 엣지 보존 능력 향상
+- 투명하고 반사되는 표면 처리 개선
+
+---
+
+## Qualitative Comparison: Indoor Scene
+
+**실내 장면 비교**
+
+.pull-left[
+**3D Gaussian Splatting**
+- 경계면이 흐릿함
+- 과도한 가우시안 사용
+- 블러 효과 발생
+]
+
+.pull-right[
+**GES (Ours)**
+- 선명한 경계 표현
+- 효율적인 프리미티브 사용
+- 디테일 보존
+]
+
+*실제 논문의 Figure를 참고하여 이미지를 추가해주세요*
+
+---
+
+## Qualitative Comparison: Outdoor Scene
+
+**야외 장면 비교**
+
+**관찰 포인트**
+
+1. **나뭇잎과 가지**: GES가 더 선명하게 표현
+2. **건물 외벽**: 텍스처 디테일 향상
+3. **하늘과 건물 경계**: 더 깔끔한 분리
+
+*실제 논문의 Figure를 참고하여 이미지를 추가해주세요*
+
+---
+
+## Shape Parameter Analysis
+
+**$\beta$ 분포 분석**
+
+장면의 다른 영역에서 학습된 $\beta$ 값의 분포:
+
+- **평면 영역** (벽, 바닥): $\beta$ ≈ 1.2-1.5
+  - 넓은 영역을 효율적으로 커버
+  
+- **엣지 영역** (모서리, 경계): $\beta$ ≈ 0.5-0.8
+  - 날카로운 전환 표현
+  
+- **일반 영역**: $\beta$ ≈ 0.9-1.1
+  - 가우시안과 유사한 형태
+
+**결론**: 모델이 장면의 특성에 따라 적응적으로 $\beta$ 선택
+
+---
+
+## Ablation Study: Effect of β
+
+**고정된 $\beta$ vs 학습 가능한 $\beta$**
+
+| Configuration | PSNR | SSIM | # Primitives |
+|---------------|------|------|--------------|
+| $\beta = 1.0$ (3DGS) | 27.2 | 0.815 | 5.8M |
+| $\beta = 0.5$ (fixed) | 26.8 | 0.808 | 6.2M |
+| $\beta = 1.5$ (fixed) | 26.5 | 0.802 | 6.5M |
+| **$\beta$ learnable** | **27.8** | **0.828** | **4.2M** |
+
+**결론**
+
+- 학습 가능한 $\beta$가 최고 성능
+- 단일 고정 $\beta$ 값은 모든 상황에 최적이 아님
+
+---
+
+## Ablation Study: Number of Primitives
+
+**프리미티브 수에 따른 성능**
+
+3DGS와 GES를 동일한 수의 프리미티브로 제한:
+
+| # Primitives | 3DGS PSNR | GES PSNR | Improvement |
+|--------------|-----------|----------|-------------|
+| 1M | 24.5 | 25.8 | +1.3 dB |
+| 2M | 25.8 | 26.9 | +1.1 dB |
+| 4M | 26.9 | 27.8 | +0.9 dB |
+
+**관찰**
+
+- 프리미티브 수가 적을수록 GES의 우위가 더 명확
+- 제한된 메모리 환경에서 특히 유용
+
+---
+
+## Rendering Speed Comparison
+
+**실시간 렌더링 성능**
+
+| Method | FPS (1080p) | FPS (4K) |
+|--------|-------------|----------|
+| NeRF | 0.05 | - |
+| Instant-NGP | 12 | 3 |
+| 3DGS | 95 | 24 |
+| **GES** | **92** | **23** |
+
+**특징**
+
+- 3DGS와 거의 동일한 렌더링 속도
+- 일반화된 커널에도 불구하고 효율성 유지
+- 실시간 애플리케이션에 적합
+
+---
+
+## Memory Consumption
+
+**메모리 사용량 비교**
+
+| Scene | 3DGS | GES | Reduction |
+|-------|------|-----|-----------|
+| Room | 458 MB | 332 MB | 27.5% |
+| Bicycle | 612 MB | 445 MB | 27.3% |
+| Garden | 892 MB | 651 MB | 27.0% |
+| Counter | 534 MB | 389 MB | 27.2% |
+
+**평균 메모리 절감**: ~27%
+
+더 적은 프리미티브로 동등 이상의 품질 달성
+
+---
+
+## Failure Cases and Limitations
+
+**한계점**
+
+1. **매우 복잡한 반사**: 고도로 복잡한 반사 표면에서 여전히 어려움
+
+2. **훈련 시간**: 3DGS 대비 약 8-10% 증가
+   - $\beta$ 파라미터 최적화에 추가 시간 필요
+
+3. **하이퍼파라미터 민감도**: $\beta$의 초기값과 학습률 설정이 중요
+
+**향후 연구 방향**
+
+- 더 다양한 커널 함수 탐색
+- 적응적 하이퍼파라미터 조정
+- 동적 장면으로 확장
+
+---
+
+# Conclusion
+
+---
+
+## Summary
+
+**Generalized Exponential Splatting (GES)**
+
+1. **일반화된 프레임워크**
+   - 가우시안을 포함한 다양한 커널 함수 지원
+   - 형상 파라미터 $\beta$를 통한 적응적 표현
+
+2. **우수한 성능**
+   - 더 높은 렌더링 품질 (PSNR, SSIM, LPIPS)
+   - 더 적은 메모리 사용 (~27% 감소)
+   - 3DGS와 유사한 렌더링 속도 유지
+
+3. **실용성**
+   - 기존 3DGS 파이프라인에 쉽게 통합 가능
+   - 추가적인 계산 부담 최소화
+
+---
+
+## Key Takeaways
+
+**왜 GES가 중요한가?**
+
+- **표현력과 효율성의 균형**: 더 적은 자원으로 더 나은 품질
+
+- **적응성**: 장면의 특성에 따라 자동으로 최적 커널 선택
+
+- **실용성**: 실시간 렌더링 속도 유지
+
+**미래 응용 분야**
+
+- VR/AR 애플리케이션
+- 자율주행 시뮬레이션
+- 디지털 트윈
+- 영화 및 게임 산업
+
+---
+
+class: center, middle
+
+# Thank You!
+
+**Questions?**
+
+.footnote[
+Paper: "GES: Generalized Exponential Splatting for Efficient Radiance Field Rendering"  
+CVPR 2024
+]

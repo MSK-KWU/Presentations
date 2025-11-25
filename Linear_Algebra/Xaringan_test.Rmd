@@ -1,0 +1,83 @@
+---
+title: "3D Gaussian Splatting-based Simultaneous Localization and Mapping"
+subtitle: "Xaringan Test"
+author: "Minsu Kim"
+date: "2025-11-24"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+```
+
+## 첫 번째 슬라이드
+
+여기는 Xaringan 테스트 슬라이드입니다.
+
+- R 코드가 잘 실행되는지 확인해봅시다.
+- `knitr`를 사용하여 R 코드 청크를 렌더링합니다.
+- 다양한 R 코드 예제를 포함할 수 있습니다.
+- 슬라이드 전환도 가능합니다.
+---
+
+## R 코드 테스트
+
+아래는 `cars` 데이터셋의 요약 정보입니다.
+
+```{r cars_summary}
+summary(cars)
+```
+
+---
+
+## 플롯 테스트
+
+R 코드로 생성된 플롯이 잘 보이는지 확인합니다.
+
+```{r pressure_plot, echo=FALSE}
+plot(pressure)
+```
+
+---
+
+## 가우시안 확률 밀도 함수 (Gaussian PDF)
+
+가우시안 분포는 수많은 자연 현상을 모델링하는 데 사용되는 연속 확률 분포입니다.
+
+--
+
+### 1차원 가우시안 (Univariate Gaussian)
+
+하나의 변수 $x$에 대한 분포를 나타냅니다.
+
+$$
+f(x | \mu, \sigma^2) = \frac{1}{\sqrt{2\pi\sigma^2}} e^{-\frac{(x-\mu)^2}{2\sigma^2}}
+$$
+
+- $\mu$: 분포의 평균 (Mean)
+- $\sigma^2$: 분포의 분산 (Variance)
+
+---
+
+## 2차원 가우시안 (Bivariate Gaussian)
+
+두 변수 $\mathbf{x} = [x, y]^T$에 대한 분포를 나타냅니다.
+
+--
+
+$$
+\begin{aligned}
+f(\mathbf{x} | \boldsymbol{\mu}, \boldsymbol{\Sigma}) &= \frac{1}{\sqrt{(2\pi)^2 |\boldsymbol{\Sigma}|}} 
+\mathrm{exp}({-\frac{1}{2}(\mathbf{x}-\boldsymbol{\mu})^T \boldsymbol{\Sigma}^{-1} (\mathbf{x}-\boldsymbol{\mu})})
+\end{aligned}
+$$
+
+- $\boldsymbol{\mu}$: 각 변수의 평균을 담은 벡터 (Mean vector)
+- $\boldsymbol{\Sigma}$: 변수 간의 관계를 나타내는 공분산 행렬 (Covariance matrix)

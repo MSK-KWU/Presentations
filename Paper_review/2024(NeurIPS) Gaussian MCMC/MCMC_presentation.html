@@ -47,6 +47,21 @@ class: center, middle, inverse, title-slide
   line-height: 1.5;
 }
 
+/* 메인 bullet 크기 */
+.remark-slide-content ul {
+  font-size: 20px;
+}
+
+/* subbullet 크기 (더 작게) */
+.remark-slide-content ul ul {
+  font-size: 18px;
+}
+
+/* sub-subbullet이 있다면 더 작게 */
+.remark-slide-content ul ul ul {
+  font-size: 15px;
+}
+
 .remark-slide-number {
   font-size: 16px;
   bottom: 40px;
@@ -82,16 +97,15 @@ count: false --&gt;
 
 ### Neural Rendering의 발전
 
-- **Neural Radiance Fields (NeRF)**
-  - 신경망을 통한 implicit modeling으로 인상적인 결과 제공하지만 렌더링 속도가 느림
+- Neural Radiance Fields (NeRF)
+  - MLP와 sampling으로 인한 인상적인 결과 제공하지만 렌더링 속도가 느림
 
-- **3D Gaussian Splatting (3DGS)**
+- 3D Gaussian Splatting (3DGS)
   - NeRF 대비 빠른 속도와 효율성
   - 고품질 이미지를 짧은 시간에 렌더링 가능
   - 하지만 몇 가지 한계 존재
       - 수작업으로 설계된 cloning/splitting 휴리스틱에 의존
       - Gaussian들을 clone, split, prune하는 복잡한 규칙
-      - 정기적으로 opacity를 리셋하여 floater 제거 필요
       - 좋은 초기 point cloud에 크게 의존
       - Gaussian 개수를 미리 추정하기 어려움
       - 메모리/계산 예산 제어가 어려움
@@ -119,49 +133,167 @@ count: false --&gt;
 
 # Method
 
-### 3D Gaussian Splatting as Markov Chain Monte Carlo
+### i ) 3D Gaussian Splatting as Markov Chain Monte Carlo
   - Gausian을 optimization하는게 아니라, Sampling 방식으로 접근
   - **Scene을 표현하는 어떤 확률 분포**를 디테일하게 표현한 샘플들을 얻는 것에 집중하는 것이 기존의 방식보다 더 효과적임
-  - 일반적인 SGLD(Stochastic Gradient Langevin Dynamics) 
-      `$$\mathbf{g} \leftarrow \mathbf{g} + a \cdot \nabla_{\mathbf{g}} \log \mathcal{P}(\mathbf{g}) + b \cdot \boldsymbol{\epsilon},$$`
+  - 즉, loss가 낮은 곳이, gaussian이 존재할 확률이 높은 명당이다.
       `$$\mathcal{G} = \mathcal{P} \propto \exp(-\mathcal{L}_{\text{total}})$$`
+
+  - 따라서, SGLD(Stochastic Gradient Langevin Dynamics)기법으로 Gaussian들 이동
+      `$$\mathbf{g} \leftarrow \mathbf{g} + a \cdot \nabla_{\mathbf{g}} \log \mathcal{P}(\mathbf{g}) + b \cdot \boldsymbol{\epsilon},$$`
+     
      
 
-  - 여기서, 기존의 3DGS(Heuristic 한 부분 제외)의 Gaussian 최적화 과정은, special case의 SGLD로 볼 수 있음   
-  `$$\mathbf{g} \leftarrow \mathbf{g} - \lambda_{\text{lr}} \cdot \nabla_{\mathbf{g}} \mathbb{E}_{\mathbf{I} \sim \mathcal{I}} [\mathcal{L}_{\text{total}}(\mathbf{g}; \mathbf{I})]$$`
-  - 따라서, SGLD의 형태로 수식을 다시 써보면,
-    `$$\mathbf{g} \leftarrow \mathbf{g} - \lambda_{\text{lr}} \cdot \nabla_{\mathbf{g}} \mathbb{E}_{\mathbf{I} \sim \mathcal{I}} [\mathcal{L}_{\text{total}}(\mathbf{g}; \mathbf{I})] + \lambda_{\text{noise}} \cdot \boldsymbol{\epsilon},$$`
 
+  - 여기서, 기존의 3DGS(Heuristic 한 부분 제외)의 Gaussian 최적화 과정은, SGLD의 special case로  볼 수 있음   
+  `$$\mathbf{g} \leftarrow \mathbf{g} - \lambda_{\text{lr}} \cdot \nabla_{\mathbf{g}} \mathbb{E}_{\mathbf{I} \sim \mathcal{I}} [\mathcal{L}_{\text{total}}(\mathbf{g}; \mathbf{I})]$$`
+  - 따라서, 3DGS를 SGLD측면에서 보면,(Image에서 보이는 gaussian만 업데이트)
+    `$$\mathbf{g} \leftarrow \mathbf{g} - \lambda_{\text{lr}} \cdot \nabla_{\mathbf{g}} \mathbb{E}_{\mathbf{I} \sim \mathcal{I}} [\mathcal{L}_{\text{total}}(\mathbf{g}; \mathbf{I})] + \lambda_{\text{noise}} \cdot \boldsymbol{\epsilon},$$`
 
 ---
 # Method
-### Heuristics as state transitions via relocation
 
-- **Dead Gaussians** (낮은 opacity) → **Live Gaussians** 위치로 이동
-- 렌더링에 미치는 영향 최소화
-- Clone된 Gaussian들이 이전과 동일한 이미지를 렌더링하도록 구성
+### ii ) Updating with Stochastic Gradient Langevin Dynamics (SGLD)
+- 다만, 위 실제 구현에서 Gradient 부분은 Adam optimizer로 대체
+`$$\mathbf{g} \leftarrow \mathbf{g} + \underbrace{a \cdot \nabla_{\mathbf{g}} \log \mathcal{P}(\mathbf{g})}_{\text{Adam optimizer}} + b \cdot \boldsymbol{\epsilon}$$`     
+    
+- 모든 파라미터(Color, Scale, Opacity)에 노이즈를 주입할 경우, 오히려 Reconstruction 품질(PSNR) 저하 
+  - Appearance(색상, 투명도)는 기존 SGD로 충분히 수렴 가능하지만, Geometry(위치)는 Local Minima 탈출 및 빈 공간 탐색(Exploration)에 의존
+
+
+- 따라서, location 파라미터에만 noise 추가(Opacity, color, covariance 등은 Adam optimizer로만 업데이트)
+- 투명한 Gaussian 은 relocaion, opaque한 gaussian은 noise를 강하게 주어 robustness test
+`$$\epsilon_{\mu} = \lambda_{\text{lr}} \cdot \sigma(-k(t - o)) \cdot \Sigma \eta$$`
+`$$\quad \boldsymbol{\epsilon} = [\boldsymbol{\epsilon}_{\mu}, \mathbf{0}]$$`
+---
+# Method
+### iii ) Heuristics as state transitions via relocation
+
+- 기존의 3DGS는 **최적화 과정 중간에 Gaussian들을 clone, split, prune**하는 복잡한 휴리스틱 규칙을 사용
+    - Gaussian의 개수가 동적으로 변화
+- 따라서, 본 논문에서는 Gaussian의 총 개수를 고정
+- 대신, 투명해서 안 보이는(Dead, `\(o &lt; 0.005\)`) 가우시안들을 '대기조(Pool)' 라고 생각하자.
+    - Clone/Split의 재정의: 새로운 가우시안을 생성하는 게 아니라, 대기조에서 끄집어내서 렌더링이 잘 되고 있는 위치로 이동
+
+.center[
+&lt;img src="fig_1.png" width="80%"/&gt;
+]
 
 ---
 
 # Method 
+- 수학적으로 쓰면 다음과 같다
+    - Densification을 위해서, Opaque한 gaussian을 여러개의 죽은 gaussian들을 가져와서 복제의 효과를 냄
+    - 새로운 Gaussian들은 기존의 Gaussian과 동일한 parameter들로 업데이트 되고, 최적화를 거치면서 densification 효과
 
+.pull-left[
+- Mean &amp; Opacity
+
+`$$1 - o_{\text{old}} = (1 - o_{\text{new}})^N$$`
+
+`$$1 - o_{\text{new}} = (1 - o_{\text{old}})^{\frac{1}{N}}$$`
+
+`$$\therefore \quad o_{\text{new}} = 1 - \sqrt[N]{1 - o_{\text{old}}} \text{,} \quad \boldsymbol{\mu}^{\text{new}}_{1,\dots,N} = \boldsymbol{\mu}^{\text{old}}_N$$`
+]
+
+.pull-right[
+- Covariance
+
+`$$\boldsymbol{\Sigma}^{\text{new}}_{1,\dots,N} = (o^{\text{old}}_N)^2 \left( \sum_{i=1}^{N} \sum_{k=0}^{i-1} \left( \binom{i-1}{k} \frac{(-1)^k (o^{\text{new}}_N)^{k+1}}{\sqrt{k+1}} \right) \right)^{-2} \boldsymbol{\Sigma}^{\text{old}}_N$$`
+]
+
+- Clone/Split을 **dead gaussian의 relocation** 대체하여 기존의 퀄리티를 유지하면서, 더 나은 위치로 Gaussian들을 이동시켜 densification
+- 너무 자주 수행하게 되면 scene 자체가 불안정해 지니, 100 iter마다 한번씩 수행
+- Adam의 모멘텀 측면에서 봤을 때, opacity가 높은(old) gaussian은 모멘텀을 초기화 하여 제자리에 머물도록, opacity가 낮은(new) gaussian은 모멘텀을 유지하여 빠르게 새로운 위치로 이동하도록 유도
+
+
+
+---
+# Method 
 ### Encourage fewer Gaussians via regularization
+
+- total loss(랜더링 안할거면 투명해지고, 너무 커지지 말고 작아져라.)
+`$$\mathcal{L}_{\text{total}} = (1 - \lambda_{\text{D-SSIM}}) \cdot \mathcal{L}_1 + \lambda_{\text{D-SSIM}} \cdot \mathcal{L}_{\text{D-SSIM}} + \lambda_o \cdot \sum_i |o_i|_1 + \lambda_{\Sigma} \cdot \sum_i \sum_j \text{eig}_j(\Sigma_i)_1$$`
+
+---
+
+# Method
+
+- Paradigm Shift: Optimization → Sampling
+    - **기존 관점**: "Loss를 최소화하여 **하나의 정답(Point Estimate)**을 찾는다."
+    - **본 논문**: "Loss Landscape를 에너지 지형으로 보고, SGLD를 통해 **최적의 확률 분포(Posterior Distribution)**를 샘플링한다."
+
+- Two-Track Strategy: "산 자는 흔들고, 죽은 자는 옮겨라" (Eq. 8)
+
+    - **Opaque (Alive)**: 이미 수렴한 것처럼 보여도 Local Minima일 수 있기에, **Anisotropic Noise(`\(\Sigma \eta\)`)**를 주입하여 끊입없이 흔들어 **Robustness Test(검증 및 탈출)**를 수행
+
+    - **Transparent (Dead)**: 가망이 없는 가우시안은 혼드는 비용조차 아깝습니다. 노이즈를 주지 않고 **Relocation(재배치)** 대상으로 분류합니다.
+
+
+-  Zero-Cost Densification Cycle (Eq. 9 &amp; 10)
+
+    - **자원 순환 시스템**: Loss Function(Eq. 10)과 Relocation(Eq. 9)은 하나의 유기적인 사이클
+
+    - **Loss (Eq. 10)**: Regularization을 통해 기여도가 낮은 가우시안을 강제로 죽여 **Dead Pool(유휴 자원)**을 확보
+
+    - **Relocation (Eq. 9)**: 확보된 자원을 디테일이 필요한 곳(Opaque)으로 **Teleport** 시킵니다. 이때 **렌더링 결과(Probability)가 보존**되도록 수학적으로 설계하여, 학습의 안정성을 해치지 않으면서 밀도(Density)향상
 
 ---
 
 # Experiments
 
+### Experimental Setup
+
+
+**Hardware**
+...?
+
+**Datasets**
+- **NeRF Synthetic** [28]: 모든 장면
+- **Tank &amp; Temples** [22]: 3DGS [19]와 동일한 2개 장면
+- **Deep Blending** [16]: 모든 장면
+- **MipNeRF 360** [2]: 공개된 장면만 사용 (Flower, Treehill 제외)
+  - Indoor scenes: 2배 다운샘플링
+  - Outdoor scenes: 4배 다운샘플링
+- **OMMO** [27]: 모든 장면 (대규모 씬, 먼 객체)
+  - Scene #01: 4배 다운샘플링 (1000×750)
+
+---
+
+# Experiments
+
+.center[
+&lt;img src="table_1.png" width="90%"/&gt;
+]
+
+---
+
+# Experiments
+
+### Qualitative Results
+
+.pull-left[
+&lt;img src="fig_2.png" width="100%"/&gt;
+]
+
+.pull-right[
+&lt;img src="fig_3.png" width="70%"/&gt;
+]
+
+---
+# Experiments
+.center[
+&lt;img src="ablation_tab3_fig4.png" width="70%"/&gt;
+]
+
 ---
 
 # Conclusion
 
-## Main Contributions
 
-✅ **3DGS와 MCMC sampling의 연결 발견** → 더 간단한 최적화
+✅ **3DGS와 MCMC sampling의 연결 발견** → Sampling으로
 
-✅ **Heuristics를 원칙적인 relocation 전략으로 대체**
-
-✅ **Parsimonious use를 위한 regularizer 도입**
+✅ **Heuristics를 dead gaussian의 relocation 전략으로 대체**
 
 ✅ **초기화에 대한 robustness 향상**
    - Random initialization 또는 SfM points 모두 가능

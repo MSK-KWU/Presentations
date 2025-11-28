@@ -199,7 +199,8 @@ count: false --&gt;
 .pull-right[
 - Covariance
 
-`$$\boldsymbol{\Sigma}^{\text{new}}_{1,\dots,N} = (o^{\text{old}}_N)^2 \left( \sum_{i=1}^{N} \sum_{k=0}^{i-1} \left( \binom{i-1}{k} \frac{(-1)^k (o^{\text{new}}_N)^{k+1}}{\sqrt{k+1}} \right) \right)^{-2} \boldsymbol{\Sigma}^{\text{old}}_N$$`
+`$$\boldsymbol{\Sigma}^{\text{new}}_{1,\dots,N} = \left(o^{\text{old}}_N\right)^2 \times$$`
+`$$\left( \sum_{i=1}^{N} \sum_{k=0}^{i-1} \left( \binom{i-1}{k} \frac{(-1)^k \left(o^{\text{new}}_N\right)^{k+1}}{\sqrt{k+1}} \right) \right)^{-2} \boldsymbol{\Sigma}^{\text{old}}_N$$`
 ]
 
 - Clone/Split을 **dead gaussian의 relocation** 대체하여 기존의 퀄리티를 유지하면서, 더 나은 위치로 Gaussian들을 이동시켜 densification

@@ -3,7 +3,7 @@
 title: "3D Gaussian Splatting as Markov Chain Monte Carlo"
 subtitle: "NeurIPS 2024"
 author: "Minsu Kim"
-date: "2025.11.28"
+date: "2025.12.02"
 output:
   xaringan::moon_reader:
     lib_dir: libs
@@ -292,3 +292,6 @@ $$\mathcal{L}_{\text{total}} = (1 - \lambda_{\text{D-SSIM}}) \cdot \mathcal{L}_1
 
 - SLAM에 사용한다면 어떻게 될까?
 - Map만 optimization한다고 생각했을 때, Large scene에서 사용할 수 있는 방법은?
+- Results
+  - https://splatter.app/s/3au-aim
+  - https://splatter.app/s/8fx-bc8  

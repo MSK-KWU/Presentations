@@ -122,7 +122,7 @@ count: false -->
 
 ### i ) 3D Gaussian Splatting as Markov Chain Monte Carlo
   - Gausian을 optimization하는게 아니라, Sampling 방식으로 접근
-  - **Scene을 표현하는 어떤 확률 분포**를 디테일하게 표현한 샘플들을 얻는 것에 집중하는 것이 기존의 방식보다 더 효과적임
+  - **Scene을 표현하는 어떤 확률 분포**를 디테일하게 표현한 샘플들을 얻는 것에 집중하는 것이 기존의 방식보다 더 효과적
   - 즉, loss가 낮은 곳이, gaussian이 존재할 확률이 높은 명당이다.
       $$\mathcal{G} = \mathcal{P} \propto \exp(-\mathcal{L}_{\text{total}})$$
 

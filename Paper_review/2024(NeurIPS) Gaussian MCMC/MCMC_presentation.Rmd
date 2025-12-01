@@ -1,5 +1,4 @@
 ---
-# xaringan::inf_mr('c:/Users/Minsu Kim/Desktop/광운대학교/2025/Presentations/Paper_review/2024(NeurIPS) Gaussian MCMC/MCMC_presentation.Rmd')
 title: "3D Gaussian Splatting as Markov Chain Monte Carlo"
 subtitle: "NeurIPS 2024"
 author: "Minsu Kim"
@@ -63,7 +62,7 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
   right: 10px;
   width: 80px;
   height: 30px;
-  background: url('lab_logo.jpg') no-repeat center;
+  background: url('fig/lab_logo.jpg') no-repeat center;
   background-size: contain;
 }
 ```
@@ -164,7 +163,7 @@ $$\quad \boldsymbol{\epsilon} = [\boldsymbol{\epsilon}_{\mu}, \mathbf{0}]$$
     - Clone/Split의 재정의: 새로운 가우시안을 생성하는 게 아니라, 대기조에서 끄집어내서 렌더링이 잘 되고 있는 위치로 이동
 
 .center[
-<img src="fig_1.png" width="80%"/>
+<img src="fig/fig_1.png" width="80%"/>
 ]
 
 ---
@@ -252,7 +251,7 @@ $$\mathcal{L}_{\text{total}} = (1 - \lambda_{\text{D-SSIM}}) \cdot \mathcal{L}_1
 # Experiments
 
 .center[
-<img src="table_1.png" width="90%"/>
+<img src="fig/table_1.png" width="90%"/>
 ]
 
 ---
@@ -262,17 +261,17 @@ $$\mathcal{L}_{\text{total}} = (1 - \lambda_{\text{D-SSIM}}) \cdot \mathcal{L}_1
 ### Qualitative Results
 
 .pull-left[
-<img src="fig_2.png" width="100%"/>
+<img src="fig/fig_2.png" width="100%"/>
 ]
 
 .pull-right[
-<img src="fig_3.png" width="70%"/>
+<img src="fig/fig_3.png" width="70%"/>
 ]
 
 ---
 # Experiments
 .center[
-<img src="ablation_tab3_fig4.png" width="70%"/>
+<img src="fig/ablation_tab3_fig4.png" width="70%"/>
 ]
 
 ---

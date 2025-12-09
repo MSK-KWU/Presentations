@@ -1,0 +1,101 @@
+---
+# xaringan::inf_mr('Paper_review/2025 (arXiv) EGGS/EGGS_presentation.Rmd')
+title: "EGGS: Exchangeable 2D/3D Gaussian Splatting for Geometry-Appearance Balanced Novel View Synthesis"
+subtitle: "arXiv 2025"
+author: "Minsu Kim"
+date: "`r format(Sys.Date(), '%Y.%m.%d')`"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: '16:9'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{css, echo=FALSE}
+.title-slide .remark-slide-number {
+  display: none;
+}
+
+.contents-list {
+  font-size: 30px;
+  font-family: 'Trebuchet MS', sans-serif;
+  line-height: 1.5;
+}
+
+.main-text {
+  font-size: 30px;
+  font-family: 'Trebuchet MS', sans-serif;
+  line-height: 1.5;
+}
+
+.remark-slide-content ul {
+  font-size: 20px;
+}
+
+.remark-slide-content ul ul {
+  font-size: 18px;
+}
+
+.remark-slide-content ul ul ul {
+  font-size: 15px;
+}
+
+.remark-slide-number {
+  font-size: 16px;
+  bottom: 40px;
+  right: 10px;
+}
+
+.remark-slide-content:not(.title-slide)::before {
+  content: "";
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  width: 80px;
+  height: 30px;
+  background: url('fig/lab_logo.jpg') no-repeat center;
+  background-size: contain;
+}
+```
+
+<!-- class: title-slide
+count: false -->
+# Contents
+
+.contents-list[
+1. Introduction
+2. Method
+3. Experiments
+4. Conclusion
+]
+
+---
+
+# Introduction
+
+- (여기에 논문 배경/문제 정의 요약)
+
+---
+
+# Method
+
+- (모델/알고리즘 핵심 아이디어 정리)
+
+---
+
+# Experiments
+
+- (데이터셋, 세팅, 정량/정성 결과)
+
+---
+
+# Conclusion
+
+- (핵심 기여, 한계, 향후 연구)

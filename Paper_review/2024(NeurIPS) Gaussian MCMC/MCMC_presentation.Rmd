@@ -1,4 +1,5 @@
 ---
+# xaringan::inf_mr('c:/Users/Minsu Kim/Desktop/광운대학교/2025/Presentations/Paper_review/2024(NeurIPS) Gaussian MCMC/MCMC_presentation.Rmd')
 title: "3D Gaussian Splatting as Markov Chain Monte Carlo"
 subtitle: "NeurIPS 2024"
 author: "Minsu Kim"
@@ -289,8 +290,21 @@ $$\mathcal{L}_{\text{total}} = (1 - \lambda_{\text{D-SSIM}}) \cdot \mathcal{L}_1
 - **더 높은 렌더링 품질 제공**
    - NeRF Synthetic, MipNeRF 360, Tank & Temples, Deep Blending, OMMO 등에서 검증
 
-- SLAM에 사용한다면 어떻게 될까?
-- Map만 optimization한다고 생각했을 때, Large scene에서 사용할 수 있는 방법은?
+- Unbounded scene에 사용한다면 어떻게 될까?
+    - Large scale, Gaussian의 개수가 많을 때의 효과는 어떨까?
+
+---
+# Custom Datasets
+
+### 새빛관 616호
+- iPhone 16 ProMax
+    - 1280 x 720
+    - 463 images, 100,000 gaussians
+    - i7 13th Gradiente + RTX 4090 
+
+
 - Results
   - https://splatter.app/s/3au-aim
   - https://splatter.app/s/8fx-bc8  
+
+

@@ -2,8 +2,11 @@
 # xaringan::inf_mr('Paper_review/2025 (arXiv) EGGS/EGGS_presentation.Rmd')
 title: "EGGS: Exchangeable 2D/3D Gaussian Splatting for Geometry-Appearance Balanced Novel View Synthesis"
 subtitle: "arXiv 2025"
-author: "Minsu Kim"
-date: "`r format(Sys.Date(), '%Y.%m.%d')`"
+author: |
+  Yancheng Zhang , Guangyu Sun , and Chen Chen
+  Institute of Artificial Intelligence, University of Central Florida
+
+date: 2025.12.12
 output:
   xaringan::moon_reader:
     lib_dir: libs
@@ -71,6 +74,55 @@ knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
   transform: translateX(-50%);
   max-width: 80%;
 }
+
+.bottom-right-img {
+  position: absolute;
+  bottom: 60px;
+  right: 20px;
+  max-width: 40%;
+}
+
+.pull-left, .pull-right {
+  width: 48%;
+}
+
+.pull-left {
+  margin-top: 30px;
+}
+
+.pull-left img, .pull-right img {
+  display: block;
+  width: 100%;
+}
+
+.caption-left {
+  position: absolute;
+  bottom: 50px;
+  left: 25%;
+  transform: translateX(-50%);
+  font-size: 16px;
+  font-style: italic;
+}
+
+.caption-right {
+  position: absolute;
+  bottom: 50px;
+  right: 25%;
+  transform: translateX(50%);
+  font-size: 16px;
+  font-style: italic;
+}
+
+/* .title-slide::after {
+  content: "Computer Vision and Robotics Laboratory, Minsu Kim";
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 22px;
+  color: #ffffff;
+  font-weight: bold;
+} */
 ```
 
 <!-- class: title-slide
@@ -92,19 +144,181 @@ count: false -->
 - NeRF는 느렸고, 3DGS는 빨랐으나, 정밀한 3D geometry 표현하는 데 어려움
     - 3D Gaussian은 anisotropic한데, 이는 view에 따라 모양이 달라져서 정확한 기하학적 표현이 어려움
 - 그래서 Surfel을 사용하는 2DGS가 제안되었으나, 디테일 표현이 부족
-    - 2D surfel의 특성을 이용해 ray-splat-intersection으로 view가 달라져도 정확한 geometry를 표현하였지만, high-freqeucny한 디테일 표현이 부족
-- 따라서, 본 논문에서는 2D/3D Gaussian Splatting을 균형있게 활용하는 EGGS 제안
-<img src="fig/fig.1.png" class="bottom-center-img"/>
+    - 2D surfel의 특성을 이용해 ray-splat-intersection으로 view가 달라져도 정확한 geometry를 표현하였지만, high-frequency한 디테일 표현이 부족
+
+<div style="display: flex; justify-content: space-between; align-items: center; margin-top: 20px; gap: 10px;">
+  <div style="width: 40%; text-align: center;">
+    <img src="fig/2d3dgs_diff.png" width="100%"/>
+  </div>
+  <div style="width: 40%; text-align: center;">
+    <img src="fig/2dgs_cons.png" width="100%"/>
+  </div>
+  <div style="width: 40%; text-align: center;">
+    <img src="fig/proj_intersection.jpg" width="100%"/>
+  </div>
+</div>
+
+
+
+---
+
+# Introduction
+
+- 기존에 이런 문제들 해결하기 위해 다양한 방법들이 제안(regularization, 2D surfel, hybrid)되었으나, 여전히 한계 존재
+    - Regularization을 사용해도, 결국 3D gaussian이기에 표면은 울퉁불퉁하고, 2D에 depth를 정확히 표현해 surface를 정밀히 표현해도,
+      high-frequency한 디테일 표현이 부족
+    - 움직여서 사라지는 물체(transient object는 2D disc로)처리를 위한 방법, 또는 수직방향으로의 고도가 급격히 변하는 것을 대응하기 위한 방식들도 제안되었으나,
+      상황에 따라 2D, 3D를 각각 생성하도록 함
+
+.center[
+<img src="fig/fig.2.png" width="100%"/>
+]
+---
+# Introduction
+  - 따라서, 본 논문에서는 2D와 3D Gaussian Splatting의 장점을 모두 활용하는 EGGS(Exchangeable 2D/3D Gaussian Splatting) 제안
+    - 2가지의 rasterizer를 통합하여 하나의 프레임워크에서 2D/3D Gaussian을 모두 활용
+    - Gaussian의 형태(2D/3D)를 자동으로 선택하는 모듈 도입
+    - DWT(Discrete Wavelet Transform) 기반의 loss로 geometry와 high-frequency 디테일 표현
+    <img src="fig/fig.3.png" class="bottom-center-img"/>
 ---
 
 # Method
+### Hybrid Rasterization
+ - 2가지 방식(2D/3D Gaussian Splatting)의 장점, 단점임 명확하였음. 
+ - 각 방식의 장점만을 결합해야 하는데, rasterizer가 달라서 단순 결합이 어려움
+      - 따라서, 두 rasterizer를 통합하는 hybrid rasterization 제안
 
-- (모델/알고리즘 핵심 아이디어 정리)
+- 우선, Gaussian Primitives 정의
+  - Center: $\boldsymbol{\mu} \in \mathbb{R}^3$ ; Scale: $\mathbf{s} \in \mathbb{R}^3$; Rotation: $\mathbf{r} \in \mathbb{R}^4$ ;Opacity: $\alpha \in \mathbb{R}$
+  - Spherical harmonic (SH) color coefficients: $\mathbf{f} \in \mathbb{R}^{3 \times (l+1)^2}$ (where $l$ is the degree) ; View-dependent RGB color: $\mathbf{c}$ is decoded from $\mathbf{f}$
+
+- Covariance matrix:
+$$\boldsymbol{\Sigma} = \mathbf{R}\mathbf{S}\mathbf{S}^T\mathbf{R}^T$$
+
+where $\mathbf{R} \in \mathbb{R}^{3 \times 3}$ is the rotation matrix from $\mathbf{r}$, and $\mathbf{S} = \text{diag}(s_x, s_y, s_z) \in \mathbb{R}^{3 \times 3}$
+
+Type specifier: $t \in \{0, 1\}$ indicates 2D ($t=0$, $s_z = 0$) or 3D ($t=1$) Gaussian
+
+---
+# Method
+
+  - 각 frame에 rendering되는 Gaussian을, $d_i$라는 하나의 거리값으로 통일하여 2D/3D를 각각 tangent frame, image frame에 rasterization
+  - 여기서 $x_p$는 픽셀의 한 좌표
+      $$d_i = \begin{cases} u_i(x_p)^2 + v_i(x_p)^2 & \text{if } t_i = 0 \text{ (2D일 때)} \\ (x_p - \mu'_{3d,i})^T \Sigma'^{-1}_i (x_p - \mu'_{3d,i}) & \text{otherwise (3D일 때)} \end{cases}$$
+  - 원의 방정식 같지만, 사실은 ray-splat intersection내에 Homography로부터 scale이 나눠지기 때문에 타원
+  - 이 값이 결국 opacity를 결정
+
+  $\tilde{\alpha}_i = \alpha_i \exp(-\frac{d_i}{2})$
+  - 이후 한꺼번에 Alpha blending 
+      - sorting은 기존 방식대로(tile based)
+
+  $C(x_p) = \sum_{i \in \mathcal{N}} c_i \tilde{\alpha}_i \prod_{j=1}^{i-1} (1 - \tilde{\alpha}_j)$
+  
+  
+
+<div style="position: absolute; right: 40px; top: 400px; width: 50%;">
+  <img src="fig/fig.4.png" width="100%"/>
+</div>
+
+---
+# Method
+### Adaptive Type Exchange  
+- Initialization은 3D Gaussian Splatting과 동일하고, $t$ (type specifier)는 랜덤하게 초기화
+- 여기서, 기존에 scene을 잘 표현하고 있다면 initialization 된 대로, 아니라면 type 을 2D ↔ 3D로 바꾸는 것이 필요
+- 이를 Adaptive Type Exchange로 해결할 수 있음
+   - Surface는 2D Gaussian이, high-frequency한 디테일 표현은 3D Gaussian이 더 적합
+- Effective Rank는 Shannon entropy로 정의
+
+$$\text{erank}(\mathcal{G}) = \exp\left(-\sum_{i=0}^{2} \frac{q_i}{\|\mathbf{q}\|_1} \log \frac{q_i}{\|\mathbf{q}\|_1}\right), \quad \text{where } \mathbf{q} = (s_x^2, s_y^2, s_z^2)$$  
+
+.pull-left[
+$$s = (10, 10, 10) \text{, }\mathbf{q} = (s_x^2, s_y^2, s_z^2) = (100, 100, 100)$$
+
+$$\|\mathbf{q}\|_1 = 300 \text{,   } p_i = \frac{q_i}{\|\mathbf{q}\|_1} = \frac{1}{3}$$
+]
+
+.pull-right[
+
+$$\mathbf{E} = -\sum_{i=0}^{2} \frac{q_i}{\|\mathbf{q}\|_1} \ln \frac{q_i}{\|\mathbf{q}\|_1} = -3 \times \left(\frac{1}{3} \ln \frac{1}{3}\right) = -\ln\left(\frac{1}{3}\right)$$
+
+$$\therefore \text{erank}(\mathcal{G}) = \exp(\mathbf{E}) = e^{\ln 3} = 3$$
+]
+---
+# Method
+.pull-left[
+- Reparameterization
+  - Permutation 해도 똑같아야 함
+    $$\Sigma = \Sigma^*$$
+  
+    $$\Sigma = R S S^T R^T$$
+    $$\Sigma = R \cdot \underbrace{(P^T P)}_{I} \cdot S \cdot \underbrace{(P^T P)}_{I} \cdot S^T \cdot \underbrace{(P^T P)}_{I} \cdot R^T$$
+    $$\Sigma = \underbrace{(R P^T)}_{R^*} \cdot \underbrace{(P S P^T)}_{S^*} \cdot \underbrace{(P S^T P^T)}_{(S^*)^T} \cdot \underbrace{(P R^T)}_{(R^*)^T}$$
+    $$S^* = P S P^T$$
+    $$\Sigma^* = R S S^T R^T$$
+
+]
+
+.pull-right[
+$$s = (10, 4, 2), \quad \mathbf{q} = (100, 16, 4) \quad \therefore \|\mathbf{q}\|_1 = 120$$
+
+$$p_x = \frac{100}{120} \approx 0.83,\quad p_y = \frac{16}{120} \approx 0.13, $$
+$$p_z = \frac{4}{120} \approx 0.03$$
+$$H = -(0.833 \ln 0.833 + 0.133 \ln 0.133 + 0.033 \ln 0.033)$$
+$$H \approx -(-0.152 - 0.268 - 0.113) \approx 0.534$$
+
+$$\text{erank} = e^{0.534} \approx \mathbf{1.71}$$
+
+**판정**: $1.71 < \theta_e (=2.05)$ → 2D로 변환($s_z = 0$)
+]
+
+
+---
+# Method
+.pull-left[
+- Scale Modulation
+    - 2D Gassian은 $s_z=0$
+    - 이렇게 되면, z값은 아무리 미분해도 0이라 학습이 안 됨
+    - 근데, 2D로 initialization된 gaussian이 3D가 되어야하는 경우가 있다면...?
+    - 강제로 scale을 작게라도 넣어줘서 학습이 가능하도록 유도
+    - 앞서 위치계산할 땐 0으로 썼지만, 학습할 땐 $s_z$를 그대로 씀
+      $$s_z^* = \text{sigmoid}\left(\frac{s_z - \theta_z}{T_z}\right) s_z$$
+      $$\alpha_i^* = \alpha_i \cdot \exp(-\lambda_z \times s_z^*)$$
+
+
+]
+
+.pull-right[
+
+]
+
+
+---
+# Method
+- Example : **3D → 2D 변환: Reparameterization**
+
+    - 학습하다가, 납작한 3D Gaussian이 엉뚱한 축으로 놓여있을 때 (e.g., $s_x \ll s_y \approx s_z$)
+
+    1. **최소 스케일 찾기**: $k = \arg\min_i \{s_x, s_y, s_z\}$
+
+    2. **축 교환 (Permutation)**: 최소 스케일을 $z$축으로 이동(where $P_k$ permutes column $k$ to position 3)
+      $$\mathbf{S}^* = P_k \mathbf{S}, \quad R^* = R P_k^T$$
+      
+      <div style="position: absolute; right: 40px; top: 400px; width: 50%;">
+  <img src="fig/fig.5.png" width="100%"/>
+</div>
 
 
 
 ---
+# Method
 
+---
+# Method
+
+---
+
+# Method
+---
 # Experiments
 
 - (데이터셋, 세팅, 정량/정성 결과)

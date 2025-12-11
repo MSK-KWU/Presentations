@@ -214,8 +214,8 @@ Type specifier: `\(t \in \{0, 1\}\)` indicates 2D (`\(t=0\)`, `\(s_z = 0\)`) or 
   - 각 frame에 rendering되는 Gaussian을, `\(d_i\)`라는 하나의 거리값으로 통일하여 2D/3D를 각각 tangent frame, image frame에 rasterization
   - 여기서 `\(x_p\)`는 픽셀의 한 좌표
       `$$d_i = \begin{cases} u_i(x_p)^2 + v_i(x_p)^2 &amp; \text{if } t_i = 0 \text{ (2D일 때)} \\ (x_p - \mu'_{3d,i})^T \Sigma'^{-1}_i (x_p - \mu'_{3d,i}) &amp; \text{otherwise (3D일 때)} \end{cases}$$`
-  - 원의 방정식 같지만, 사실은 ray-splat intersection내에 Homography로부터 scale이 나눠지기 때문에 타원
-  - 이 값이 결국 opacity를 결정
+  - 원의 방정식 같지만, 사실은 ray-splat intersection식 내부에 scale로 나눠지기 때문에 타원
+  - 이 값이 결국 opacity를 결정(`\(s_z\)`의 크기에 따라 달라짐)
 
   `\(\tilde{\alpha}_i = \alpha_i \exp(-\frac{d_i}{2})\)`
   - 이후 한꺼번에 Alpha blending 
@@ -255,8 +255,8 @@ Type specifier: `\(t \in \{0, 1\}\)` indicates 2D (`\(t=0\)`, `\(s_z = 0\)`) or 
 ---
 # Method
 .pull-left[
-- Reparameterization
-  - Permutation 해도 똑같아야 함
+- Reparameterization(3D to 2D)
+  - Covariance는 Permutation 해도 똑같아야 함(제일 작은 축이 z축이 되도록)
     `$$\Sigma = \Sigma^*$$`
   
     `$$\Sigma = R S S^T R^T$$`
@@ -284,12 +284,13 @@ $$p_x = \frac{100}{120} \approx 0.83,\quad p_y = \frac{16}{120} \approx 0.13, $$
 ---
 # Method
 .pull-left[
-- Scale Modulation
+- Scale Modulation(2D to 3D)
     - 2D Gassian은 `\(s_z=0\)`
     - 이렇게 되면, z값은 아무리 미분해도 0이라 학습이 안 됨
-    - 근데, 2D로 initialization된 gaussian이 3D가 되어야하는 경우가 있다면...?
+    - 근데, 2D로 initialization된 gaussian이 3D가 되어야하는 경우가 있다면...?(예: 연기, 투명한 물체)
+    - 
     - 강제로 scale을 작게라도 넣어줘서 학습이 가능하도록 유도
-    - 앞서 위치계산할 땐 0으로 썼지만, 학습할 땐 `\(s_z\)`를 그대로 씀
+    - 앞서 위치계산할 땐 0으로 썼지만, 학습할 땐 `\(s_z\)`를 그대로 씀(여기선 `\(\theta_z = 1.05 , \quad T_z = 0.1, \quad \lambda_z = 0.5\)`)
       `$$s_z^* = \text{sigmoid}\left(\frac{s_z - \theta_z}{T_z}\right) s_z$$`
       `$$\alpha_i^* = \alpha_i \cdot \exp(-\lambda_z \times s_z^*)$$`
 
@@ -297,46 +298,122 @@ $$p_x = \frac{100}{120} \approx 0.83,\quad p_y = \frac{16}{120} \approx 0.13, $$
 ]
 
 .pull-right[
+- **Case A**: `\(s_z = 1.04\)` (기준보다 작음)
+  - `\(\frac{1.04 - 1.05}{0.001} = -10\)`
+  - `\(\text{sigmoid}(-10) \approx 0.000045 \rightarrow s_z^* \approx 0\)`
+  - 투명도에 영향 없음 (2D 유지)
 
+- **Case B**: `\(s_z = 1.06\)` (기준보다 큼)
+  - `\(\frac{1.06 - 1.05}{0.001} = +10\)`
+  - `\(\text{sigmoid}(+10) \approx 0.99995 \rightarrow s_z^* \approx s_z\)`
+  - `\(\alpha^*\)`가 감소하여 **점점 투명해짐 (3D로 전환 시작)**
+  - 이 과정들은 매 500iter마다 수행(너무 자주하면 scene이 불안정해짐)
 ]
 
 
 ---
 # Method
-- Example : **3D → 2D 변환: Reparameterization**
+### 정리해보면...
+- Initialization: 3D Gaussian Splatting과 동일하게 초기화, `\(t\)`는 랜덤
+- 매 500iter마다 Adaptive Type Exchange 수행
+  - Effective Rank로 2D/3D 판정
+  - Reparameterization으로 축 교환
+  - Scale Modulation으로 2D→3D 전환 시 학습 가능하도록 유도
+  - 즉, 기존의 3DGS와 2DGS의 장점은 그대로 유지하면서, 단점을 상황에 따라 보완하도록 함
+  - 벽, 바닥 등 평면에 생성된 3D Gaussian은 2D로 바꾸고, 연기, 투명한 물체 등은 3D Gaussian으로 유지하여 디테일 표현 가능
+      - 2D인 경우에도 3D로 바뀌면서 잔디, 나뭇잎 등 디테일 표현 가능
+  - 따라서, geometry와 appearance의 균형 잡힌 표현 가능
+  - 마지막 loss..
 
-    - 학습하다가, 납작한 3D Gaussian이 엉뚱한 축으로 놓여있을 때 (e.g., `\(s_x \ll s_y \approx s_z\)`)
+---
+# Method
+### Frequency-Decoupled Optimization
+ - 앞서 언급했듯이, 2D gaussian은 Geometry를, 3D gaussian은 high-frequency appearance를 표현하는 데 유리
+ - 저주파 성분(Geometry)는 학습의 초반부에, 고주파 성분(appearance)은 후반부에 학습되는 경향
+ - 학습이 끝나고 나면, 2D gaussian이 고주파 성분을 표현하려고 하고, 3D gaussian이 저주파 성분을 표현하려 하기도 함
+ - 이를 방지하기 위해, DWT(Discrete Wavelet Transform) 기반의 loss 제안
+ - 고주파, 저주파 성분으로 나누어 각각 다른 weight로 loss 계산
+ - Rendered image와 GT image에 각각 DWT를 적용
 
-    1. **최소 스케일 찾기**: `\(k = \arg\min_i \{s_x, s_y, s_z\}\)`
+.pull-left[
+   `\(\mathcal{I}_l, \mathcal{I}_h = \text{DWT}(\mathcal{I}) , \quad \hat{\mathcal{I}}_l, \hat{\mathcal{I}}_h = \text{DWT}(\hat{\mathcal{I}})\)`
 
-    2. **축 교환 (Permutation)**: 최소 스케일을 `\(z\)`축으로 이동(where `\(P_k\)` permutes column `\(k\)` to position 3)
-      `$$\mathbf{S}^* = P_k \mathbf{S}, \quad R^* = R P_k^T$$`
-      
-      &lt;div style="position: absolute; right: 40px; top: 400px; width: 50%;"&gt;
-  &lt;img src="fig/fig.5.png" width="100%"/&gt;
+   `\(\mathcal{L}_i = \|\hat{\mathcal{I}}_i - \mathcal{I}_i\|_2^2 \quad \text{for } i \in \{\text{low}, \text{high}\}\)`
+
+   `\(\mathcal{L}_{\text{color}} = (1 - \lambda)\mathcal{L}_1 + \lambda \mathcal{L}_{\text{D-SSIM}}\)`
+
+   `\(\mathcal{L} = \mathcal{L}_{\text{color}} + \lambda_{\text{low}}\mathcal{L}_{\text{low}} + \lambda_{\text{high}}\mathcal{L}_{\text{high}}\)`
+]
+
+&lt;div style="position: absolute; right: 20px; top: 370px; width: 40%;"&gt;
+  &lt;img src="fig/fig.6.jpeg" width="90%"/&gt;
+&lt;/div&gt;
+---
+# Method
+ - 이렇게 이상적이면 좋겠지만, 각각의 gradient가 서로 충돌(내적했을 때 음수)하는 경우 발생
+ - Pseudo code를 보면, 2D/3D 상관없이 모든 Gaussian과, 각각의 loss가 있을 때, 각각의 gradient가 서로 충돌하는지 확인
+ - Projection해서 충돌성분 제거;법선벡터 방향이면, 서로 아예 간섭이 없다는 뜻
+    -즉, if문으로 인해 2D만 업데이트하는게 아니라, 방해받지 않는 filter를 만들어 상반되는 frequency도 함께 학습하도록 
+&lt;div style="position: absolute; left: 10px; top: 400px; width: 50%;"&gt;
+  &lt;img src="fig/fig.7.jpeg" width="90%"/&gt;
+&lt;/div&gt;
+&lt;div style="position: absolute; right: 10px; top: 300px; width: 50%;"&gt;
+  &lt;img src="fig/algo.1.jpeg" width="70%"/&gt;
 &lt;/div&gt;
 
-
-
----
-# Method
-
----
-# Method
-
----
-
-# Method
 ---
 # Experiments
+### Qualitative Results
 
-- (데이터셋, 세팅, 정량/정성 결과)
+.center[
+&lt;img src="fig/fig.8.jpeg" width="70%"/&gt;
+]
+
+---
+# Experiments
+### Quantitative Results
+
+.center[
+&lt;img src="fig/tab.1.jpeg" width="80%"/&gt;
+]
+
+.center[
+&lt;img src="fig/tab3_4.jpeg" width="80%"/&gt;
+]
+
+---
+# Experiments
+### Geometry Evaluation
+
+.center[
+&lt;img src="fig/champer_d.jpeg" width="80%"/&gt;
+]
 
 ---
 
 # Conclusion
 
-- (핵심 기여, 한계, 향후 연구)
+
+1. **Hybrid Rasterization**: 2D/3D Gaussian Splatting을 하나의 프레임워크로 통합
+   - 통일된 `\(d_i\)`로 두 방식을 결합
+
+2. **Adaptive Type Exchange**: Gaussian의 형태를 자동으로 전환
+   - Effective Rank 기반 판정으로 2D ↔ 3D 바꿔가벼 type change
+   - Reparameterization으로 형태 보존하며 축 교환
+   - Scale Modulation으로 2D→3D 전환 시 추가 학습 가능성 확보
+
+3. **Frequency-Decoupled Optimization**: DWT 기반 loss로 주파수별 최적화
+   - 저주파(geometry)와 고주파(appearance)를 분리하여 학습
+   - 2D Gaussian은 geometry, 3D Gaussian은 디테일 표현에 집중
+
+---
+# Conclusion
+
+- Hybrid 방식은 좋은 아이디어 같음👍
+- 다만, 기하급수적으로 늘어나는 Gaussian 수에 대한 처리는 어쩌지
+- 2D, 3D로 나누었다 하더라도, Gaussian이 needle처럼 얇아지면 결국 3DGS와 비슷한 문제가 발생하지 않을까?
+- Geometry도 문제지만, Gaussian 자체부터 관리를 잘 해야함!
+- SLAM에 활용한다면, surfel을 사용하는 녀석들과 결합하기 좋을 듯!
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
 <script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>

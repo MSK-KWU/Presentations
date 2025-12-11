@@ -289,6 +289,7 @@ $$p_x = \frac{100}{120} \approx 0.83,\quad p_y = \frac{16}{120} \approx 0.13, $$
     - 이렇게 되면, z값은 아무리 미분해도 0이라 학습이 안 됨
     - 근데, 2D로 initialization된 gaussian이 3D가 되어야하는 경우가 있다면...?
     - 강제로 scale을 작게라도 넣어줘서 학습이 가능하도록 유도
+    - 앞서 위치계산할 땐 0으로 썼지만, 학습할 땐 `\(s_z\)`를 그대로 씀
       `$$s_z^* = \text{sigmoid}\left(\frac{s_z - \theta_z}{T_z}\right) s_z$$`
       `$$\alpha_i^* = \alpha_i \cdot \exp(-\lambda_z \times s_z^*)$$`
 

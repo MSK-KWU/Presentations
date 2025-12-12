@@ -1,7 +1,8 @@
 ---
 # xaringan::inf_mr('Paper_review/2025 (arXiv) EGGS/EGGS_presentation.Rmd')
+# pagedown::chrome_print('Paper_review/2025 (arXiv) EGGS/EGGS_presentation.html')
 title: "EGGS: Exchangeable 2D/3D Gaussian Splatting for Geometry-Appearance Balanced Novel View Synthesis"
-subtitle: "arXiv 2025"
+subtitle: "2025   NeurIPS Spotlight Poster"
 author: |
   Yancheng Zhang , Guangyu Sun , and Chen Chen
   Institute of Artificial Intelligence, University of Central Florida

@@ -1,0 +1,110 @@
+---
+# xaringan::inf_mr('My research/Pytorch_tutorial.Rmd')
+title: "Pytorch tutorial"
+subtitle: "My research"
+author: "Minsu Kim"
+date: "2026.01.13"
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      highlightStyle: github
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: '16:9'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{css, echo=FALSE}
+.title-slide .remark-slide-number {
+  display: none;
+}
+
+.contents-list {
+  font-size: 30px;
+  font-family: 'Trebuchet MS', sans-serif;
+  line-height: 1.5;
+}
+
+.main-text {
+  font-size: 30px;
+  font-family: 'Trebuchet MS', sans-serif;
+  line-height: 1.5;
+}
+
+/* 메인 bullet 크기 */
+.remark-slide-content ul {
+  font-size: 20px;
+}
+
+/* subbullet 크기 (더 작게) */
+.remark-slide-content ul ul {
+  font-size: 18px;
+}
+
+/* sub-subbullet이 있다면 더 작게 */
+.remark-slide-content ul ul ul {
+  font-size: 15px;
+}
+
+.remark-slide-number {
+  font-size: 16px;
+  bottom: 40px;
+  right: 10px;
+}
+
+.remark-slide-content:not(.title-slide)::before {
+  content: "";
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  width: 80px;
+  height: 30px;
+  background: url('lab_logo.jpg') no-repeat center;
+  background-size: contain;
+}
+```
+<!-- class: title-slide
+count: false -->
+# Contents
+
+
+
+---
+# Introduction
+
+### SGD Optimization
+
+First, we create tensors with `requires_grad=True` to track gradients.
+$$\theta = \{x, y\}$$
+```python
+x = torch.tensor(0.0, requires_grad=True)
+y = torch.tensor(0.0, requires_grad=True)
+```
+
+Next, we initialize the optimizer (SGD) with parameters and learning rate.
+$$\theta_{t+1} = \theta_t - \eta \nabla \mathcal{L}$$
+```python
+optimizer = torch.optim.SGD([x, y], lr=0.1)
+```
+
+In the training loop, we first reset the gradients.
+$$\nabla \mathcal{L} \leftarrow 0$$
+```python
+optimizer.zero_grad()
+```
+
+We compute the loss with noise and peform backpropagation.
+$$\mathcal{L} = f(x, y, \epsilon)$$
+```python
+loss = loss_function(x, y, torch.randn(1) * 0.1)
+loss.backward()
+```
+
+Finally, we update the parameters using the step function.
+```python
+optimizer.step() #<<
+```

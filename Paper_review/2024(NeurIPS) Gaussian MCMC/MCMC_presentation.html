@@ -22,7 +22,7 @@ class: center, middle, inverse, title-slide
 ### Minsu Kim
 ]
 .date[
-### 2025.12.02
+### 2025.11.28
 ]
 
 ---
@@ -75,7 +75,7 @@ class: center, middle, inverse, title-slide
   right: 10px;
   width: 80px;
   height: 30px;
-  background: url('fig/lab_logo.jpg') no-repeat center;
+  background: url('lab_logo.jpg') no-repeat center;
   background-size: contain;
 }
 &lt;/style&gt;
@@ -135,7 +135,7 @@ count: false --&gt;
 
 ### i ) 3D Gaussian Splatting as Markov Chain Monte Carlo
   - Gausian을 optimization하는게 아니라, Sampling 방식으로 접근
-  - **Scene을 표현하는 어떤 확률 분포**를 디테일하게 표현한 샘플들을 얻는 것에 집중하는 것이 기존의 방식보다 더 효과적
+  - **Scene을 표현하는 어떤 확률 분포**를 디테일하게 표현한 샘플들을 얻는 것에 집중하는 것이 기존의 방식보다 더 효과적임
   - 즉, loss가 낮은 곳이, gaussian이 존재할 확률이 높은 명당이다.
       `$$\mathcal{G} = \mathcal{P} \propto \exp(-\mathcal{L}_{\text{total}})$$`
 
@@ -176,7 +176,7 @@ count: false --&gt;
     - Clone/Split의 재정의: 새로운 가우시안을 생성하는 게 아니라, 대기조에서 끄집어내서 렌더링이 잘 되고 있는 위치로 이동
 
 .center[
-&lt;img src="fig/fig_1.png" width="80%"/&gt;
+&lt;img src="fig_1.png" width="80%"/&gt;
 ]
 
 ---
@@ -199,8 +199,7 @@ count: false --&gt;
 .pull-right[
 - Covariance
 
-`$$\boldsymbol{\Sigma}^{\text{new}}_{1,\dots,N} = \left(o^{\text{old}}_N\right)^2 \times$$`
-`$$\left( \sum_{i=1}^{N} \sum_{k=0}^{i-1} \left( \binom{i-1}{k} \frac{(-1)^k \left(o^{\text{new}}_N\right)^{k+1}}{\sqrt{k+1}} \right) \right)^{-2} \boldsymbol{\Sigma}^{\text{old}}_N$$`
+`$$\boldsymbol{\Sigma}^{\text{new}}_{1,\dots,N} = (o^{\text{old}}_N)^2 \left( \sum_{i=1}^{N} \sum_{k=0}^{i-1} \left( \binom{i-1}{k} \frac{(-1)^k (o^{\text{new}}_N)^{k+1}}{\sqrt{k+1}} \right) \right)^{-2} \boldsymbol{\Sigma}^{\text{old}}_N$$`
 ]
 
 - Clone/Split을 **dead gaussian의 relocation** 대체하여 기존의 퀄리티를 유지하면서, 더 나은 위치로 Gaussian들을 이동시켜 densification
@@ -264,7 +263,7 @@ count: false --&gt;
 # Experiments
 
 .center[
-&lt;img src="fig/table_1.png" width="90%"/&gt;
+&lt;img src="table_1.png" width="90%"/&gt;
 ]
 
 ---
@@ -274,17 +273,17 @@ count: false --&gt;
 ### Qualitative Results
 
 .pull-left[
-&lt;img src="fig/fig_2.png" width="100%"/&gt;
+&lt;img src="fig_2.png" width="100%"/&gt;
 ]
 
 .pull-right[
-&lt;img src="fig/fig_3.png" width="70%"/&gt;
+&lt;img src="fig_3.png" width="70%"/&gt;
 ]
 
 ---
 # Experiments
 .center[
-&lt;img src="fig/ablation_tab3_fig4.png" width="70%"/&gt;
+&lt;img src="ablation_tab3_fig4.png" width="70%"/&gt;
 ]
 
 ---
@@ -302,24 +301,8 @@ count: false --&gt;
 - **더 높은 렌더링 품질 제공**
    - NeRF Synthetic, MipNeRF 360, Tank &amp; Temples, Deep Blending, OMMO 등에서 검증
 
-- Unbounded scene에 사용한다면 어떻게 될까?
-    - Large scale, Gaussian의 개수가 많을 때의 효과는 어떨까?
-
----
-# Custom Datasets
-
-### 새빛관 616호
-- iPhone 16 ProMax
-    - 1280 x 720
-    - 463 images, 100,000 gaussians
-    - i7 13th Gradiente + RTX 4090 
-
-
-- Results
-  - https://splatter.app/s/3au-aim
-  - https://splatter.app/s/8fx-bc8  
-
-
+- SLAM에 사용한다면 어떻게 될까?
+- Map만 optimization한다고 생각했을 때, Large scene에서 사용할 수 있는 방법은?
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
 <script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>

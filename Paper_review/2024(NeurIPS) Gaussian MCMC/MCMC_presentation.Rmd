@@ -1,5 +1,6 @@
 ---
 # xaringan::inf_mr('Paper_review/2024(NeurIPS) Gaussian MCMC/MCMC_presentation.Rmd')
+# on ubuntu : R -e "xaringan::inf_mr('Paper_review/2024(NeurIPS) Gaussian MCMC/MCMC_presentation.Rmd')"
 title: "3D Gaussian Splatting as Markov Chain Monte Carlo"
 subtitle: "NeurIPS 2024"
 author: "Minsu Kim"

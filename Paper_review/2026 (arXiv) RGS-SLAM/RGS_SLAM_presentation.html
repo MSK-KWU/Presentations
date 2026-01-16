@@ -332,7 +332,7 @@ $$
  - Keyframe과 Gaussian 동시에 최적화
  `$$\mathcal{L} = \sum_{I \in \mathcal{W}} \lambda_{\text{pho}} \| g_I \mathcal{S}(\mathcal{G}, T_{WC}) + b_I - \bar{I} \|_1 + \mathcal{R}$$`
 
- - Regularizer를 추가했는데, neddle이 되거나, 애매한 opacity 가진것들을 방지하고, 초기화된 위치에서 벗어나지 않도록
+ - Regularizer를 추가; neddle이 되거나, 애매한 opacity 가진것들을 방지하고, 초기화된 위치에서 벗어나지 않도록
  `$$\mathcal{R} = \lambda_{\text{iso}} \sum_i \left\| \Sigma_i^W - \frac{\text{tr}(\Sigma_i^W)}{3} I_3 \right\|_F + \lambda_{\alpha} \sum_i \psi(\alpha_i) + \lambda_{\mu} \sum_i \| \mu_i^W - \bar{\mu}_i^W \|_2^2$$`
 ---
 # Experiments

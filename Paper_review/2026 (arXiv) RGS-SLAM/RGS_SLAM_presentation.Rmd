@@ -1,7 +1,7 @@
 ---
 # xaringan::inf_mr('Paper_review/2026 (arXiv) RGS-SLAM/RGS_SLAM_presentation.Rmd')
 # pagedown::chrome_print('Paper_review/2026 (arXiv) RGS-SLAM/RGS_SLAM_presentation.html')
-title: "RGS-SLAM: Robust Gaussian Splatting SLAM with One-Shot Dense Initialization"
+title: "ㄴ"
 subtitle: "2026 (arXiv)"
 author: |
   Wei-Tse Cheng, Yen-Jen Chiou, Yuan-Fu Yang∗

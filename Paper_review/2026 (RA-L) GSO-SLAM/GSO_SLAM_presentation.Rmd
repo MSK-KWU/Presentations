@@ -1,0 +1,937 @@
+---
+# xaringan::inf_mr('2026 (RA-L) GSO-SLAM/GSO_SLAM_presentation.Rmd')
+# pagedown::chrome_print('2026 (RA-L) GSO-SLAM/GSO_SLAM_presentation.html')
+title: "GSO-SLAM: Bidirectionally Coupled Gaussian Splatting and Direct Visual Odometry"
+subtitle: "2026 (RA-L)"
+author: |
+  Jiung Yeon, Seongbo Ha, Hyeonwoo Yu†
+  Department of Intelligent Robotics, Sungkyunkwan University
+date: 2026.02.22
+
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    nature:
+      highlightStyle: github  
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: '16:9'
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+```{css, echo=FALSE}
+.title-slide .remark-slide-number {
+  display: none;
+}
+
+.contents-list {
+  font-size: 30px;
+  font-family: 'Trebuchet MS', sans-serif;
+  line-height: 1.5;
+}
+
+.main-text {
+  font-size: 30px;
+  font-family: 'Trebuchet MS', sans-serif;
+  line-height: 1.5;
+}
+
+.remark-slide-content ul {
+  font-size: 20px;
+}
+
+.remark-slide-content ul ul {
+  font-size: 18px;
+}
+
+.remark-slide-content ul ul ul {
+  font-size: 15px;
+}
+
+.remark-slide-number {
+  font-size: 16px;
+  bottom: 40px;
+  right: 10px;
+}
+
+.remark-slide-content:not(.title-slide)::before {
+  content: "";
+  position: absolute;
+  bottom: 8px;
+  right: 10px;
+  width: 80px;
+  height: 30px;
+  background: url('fig/lab_logo.jpg') no-repeat center;
+  background-size: contain;
+}
+
+.bottom-center-img {
+  position: absolute;
+  bottom: 60px;
+  left: 50%;
+  transform: translateX(-50%);
+  max-width: 80%;
+}
+
+.bottom-right-img {
+  position: absolute;
+  bottom: 60px;
+  right: 20px;
+  max-width: 40%;
+}
+
+.pull-left, .pull-right {
+  width: 48%;
+}
+
+.pull-left {
+  margin-top: 30px;
+}
+
+.pull-left img, .pull-right img {
+  display: block;
+  width: 100%;
+}
+
+.caption-left {
+  position: absolute;
+  bottom: 50px;
+  left: 25%;
+  transform: translateX(-50%);
+  font-size: 16px;
+  font-style: italic;
+}
+
+.caption-right {
+  position: absolute;
+  bottom: 50px;
+  right: 25%;
+  transform: translateX(50%);
+  font-size: 16px;
+  font-style: italic;
+}
+
+/* .title-slide::after {
+  content: "Computer Vision and Robotics Laboratory, Minsu Kim";
+  position: absolute;
+  bottom: 30px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 22px;
+  color: #ffffff;
+  font-weight: bold;
+} */
+```
+
+<!-- class: title-slide
+count: false -->
+# Contents
+
+.contents-list[
+1. Introduction
+2. Background: EM Algorithm (PRML)
+3. Method
+4. Experiments
+5. Conclusion
+]
+
+---
+
+# Introduction
+
+- SLAM(Simultaneous Localization and Mapping)은 로봇, AR/VR 등에서 필수적인 기술
+  - 정확한 pose estimation뿐 아니라, 기하학적으로 정밀한 dense reconstruction에 대한 수요 증가
+- INR(Implicit Neural Representation) 기반 SLAM이 등장했으나, 높은 연산 비용으로 실시간 적용에 한계
+  - iMAP, NICE-SLAM, Co-SLAM, Point-SLAM 등
+- **Gaussian Splatting(GS)** 기반 SLAM이 대안으로 부상
+  - 명시적 Gaussian primitive와 GPU 가속 rasterization 기반 렌더링
+  - MonoGS, SplaTAM, GS-SLAM 등 → GS의 dense SLAM에서의 효과성 입증
+
+.center[
+<img src="fig/fig1.png" width="70%"/>
+]
+
+---
+
+# Introduction
+
+### 기존 GS-SLAM의 한계
+
+- **Coupled 방식** (MonoGS, SplaTAM, GS-SLAM):
+  - 통합된 scene을 tracking과 mapping에 공유하여 re-rendering loss 기반 tracking 수행
+  - 하지만 tracking에 반복적인 rendering과 optimization이 필요 → **실시간 처리 어려움**
+
+- **Loosely coupled 방식** (Photo-SLAM, MGSO):
+  - ORB-SLAM3, DSO 등 기존 tracking framework와 GS를 독립적으로 통합
+  - 속도 문제는 해결하지만, tracking과 mapping이 **독립적으로 동작** → dense scene을 tracking에 활용 불가
+  - Scene geometry 정보가 scene optimization에 제한적으로만 반영
+
+---
+
+# Introduction
+
+### GSO-SLAM의 제안
+
+- **Bidirectional Coupling**: Visual Odometry(VO)와 Gaussian Splatting(GS)을 양방향으로 결합
+  - DSO(Direct Sparse Odometry)와 2DGS 기반 mapping의 joint optimization
+- **EM(Expectation-Maximization) Framework**:
+  - Joint optimization을 EM으로 정식화 → **추가 연산 비용 없이** VO의 semi-dense depth와 GS representation을 동시에 최적화
+- **Gaussian Splat Initialization**:
+  - DSO의 image gradient, keyframe pose, pixel association을 활용하여 초기 Gaussian 파라미터를 결정
+  - Heuristic 초기화 방법 불필요 → 수렴 가속화
+
+.center[
+<img src="fig/fig2.png" width="80%"/>
+]
+
+---
+
+# Background: EM Algorithm
+
+### Latent Variable Models (PRML Ch.9)
+
+- Observed data $\mathbf{X}$, latent variables $\mathbf{Z}$, parameters $\boldsymbol{\theta}$가 주어졌을 때
+- 목표: **observed data의 log-likelihood를 최대화**
+
+$$\ln p(\mathbf{X}|\boldsymbol{\theta}) = \ln \left\{ \sum_{\mathbf{Z}} p(\mathbf{X}, \mathbf{Z}|\boldsymbol{\theta}) \right\}$$
+
+- 문제: $\mathbf{Z}$에 대한 marginalization(합 또는 적분)이 log 안에 있어 **직접 최적화가 어려움**
+  - 특히 $p(\mathbf{X}, \mathbf{Z}|\boldsymbol{\theta})$가 exponential family일 때, $\sum$ 또는 $\int$가 log 안에 있으면 닫힌 해가 존재하지 않음
+
+- 해결책: **EM Algorithm** — 반복적으로 lower bound를 최대화하여 간접적으로 $\ln p(\mathbf{X}|\boldsymbol{\theta})$를 증가시킴
+
+---
+
+# Background: EM Algorithm
+
+### Log-Likelihood Decomposition (PRML 9.4)
+
+- 임의의 분포 $q(\mathbf{Z})$를 도입하여 log-likelihood를 분해
+
+$$\ln p(\mathbf{X}|\boldsymbol{\theta}) = \mathcal{L}(q, \boldsymbol{\theta}) + \text{KL}(q \| p)$$
+
+- 여기서:
+
+$$\mathcal{L}(q, \boldsymbol{\theta}) = \sum_{\mathbf{Z}} q(\mathbf{Z}) \ln \frac{p(\mathbf{X}, \mathbf{Z}|\boldsymbol{\theta})}{q(\mathbf{Z})} \quad \text{(ELBO: Evidence Lower Bound)}$$
+
+$$\text{KL}(q \| p) = -\sum_{\mathbf{Z}} q(\mathbf{Z}) \ln \frac{p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta})}{q(\mathbf{Z})} \quad \text{(KL Divergence)}$$
+
+- KL divergence의 성질: $\text{KL}(q \| p) \geq 0$
+  - 따라서 $\mathcal{L}(q, \boldsymbol{\theta}) \leq \ln p(\mathbf{X}|\boldsymbol{\theta})$ → $\mathcal{L}$은 **lower bound**
+
+---
+
+# Background: EM Algorithm
+
+### Decomposition 증명 (PRML 9.4)
+
+- $\ln p(\mathbf{X}|\boldsymbol{\theta})$에서 출발하여 $q(\mathbf{Z})$를 도입:
+
+$$\ln p(\mathbf{X}|\boldsymbol{\theta}) = \ln p(\mathbf{X}|\boldsymbol{\theta}) \cdot \underbrace{\sum_{\mathbf{Z}} q(\mathbf{Z})}_{=1}$$
+
+$$= \sum_{\mathbf{Z}} q(\mathbf{Z}) \ln p(\mathbf{X}|\boldsymbol{\theta})$$
+
+- Bayes' rule: $p(\mathbf{X}|\boldsymbol{\theta}) = \frac{p(\mathbf{X}, \mathbf{Z}|\boldsymbol{\theta})}{p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta})}$를 대입:
+
+$$= \sum_{\mathbf{Z}} q(\mathbf{Z}) \ln \frac{p(\mathbf{X}, \mathbf{Z}|\boldsymbol{\theta})}{p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta})}$$
+
+$$= \sum_{\mathbf{Z}} q(\mathbf{Z}) \ln \frac{p(\mathbf{X}, \mathbf{Z}|\boldsymbol{\theta})}{q(\mathbf{Z})} \cdot \frac{q(\mathbf{Z})}{p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta})}$$
+
+$$= \underbrace{\sum_{\mathbf{Z}} q(\mathbf{Z}) \ln \frac{p(\mathbf{X}, \mathbf{Z}|\boldsymbol{\theta})}{q(\mathbf{Z})}}_{\mathcal{L}(q, \boldsymbol{\theta})} + \underbrace{\sum_{\mathbf{Z}} q(\mathbf{Z}) \ln \frac{q(\mathbf{Z})}{p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta})}}_{\text{KL}(q \| p)} \quad \blacksquare$$
+
+---
+
+# Background: EM Algorithm
+
+### KL Divergence $\geq 0$ 증명 (Gibbs' Inequality)
+
+- Jensen's inequality를 이용한 증명:
+
+$$\text{KL}(q \| p) = -\sum_{\mathbf{Z}} q(\mathbf{Z}) \ln \frac{p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta})}{q(\mathbf{Z})}$$
+
+- $-\ln(\cdot)$은 **convex function**이므로, Jensen's inequality에 의해:
+
+$$-\sum_{\mathbf{Z}} q(\mathbf{Z}) \ln \frac{p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta})}{q(\mathbf{Z})} \geq -\ln \left( \sum_{\mathbf{Z}} q(\mathbf{Z}) \cdot \frac{p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta})}{q(\mathbf{Z})} \right)$$
+
+$$= -\ln \left( \sum_{\mathbf{Z}} p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta}) \right) = -\ln(1) = 0$$
+
+- 등호 조건: $\frac{p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta})}{q(\mathbf{Z})} = \text{const}$ 즉, $q(\mathbf{Z}) = p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta})$ 일 때 $\quad \blacksquare$
+
+---
+
+# Background: EM Algorithm
+
+### E-step (PRML 9.4)
+
+- $\boldsymbol{\theta}$를 $\boldsymbol{\theta}^{\text{old}}$로 고정하고, $\mathcal{L}(q, \boldsymbol{\theta}^{\text{old}})$를 $q(\mathbf{Z})$에 대해 최대화
+
+- Decomposition에서:
+
+$$\ln p(\mathbf{X}|\boldsymbol{\theta}^{\text{old}}) = \mathcal{L}(q, \boldsymbol{\theta}^{\text{old}}) + \text{KL}(q \| p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta}^{\text{old}}))$$
+
+- $\ln p(\mathbf{X}|\boldsymbol{\theta}^{\text{old}})$는 $q$에 대해 상수이므로:
+
+$$\max_q \mathcal{L}(q, \boldsymbol{\theta}^{\text{old}}) \;\Leftrightarrow\; \min_q \text{KL}(q \| p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta}^{\text{old}}))$$
+
+- $\text{KL} \geq 0$이고, $\text{KL} = 0$일 때 최소 → 따라서:
+
+$$\boxed{q^*(\mathbf{Z}) = p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta}^{\text{old}})}$$
+
+- 이때 $\mathcal{L}(q^*, \boldsymbol{\theta}^{\text{old}}) = \ln p(\mathbf{X}|\boldsymbol{\theta}^{\text{old}})$ (lower bound가 log-likelihood에 도달)
+
+---
+
+# Background: EM Algorithm
+
+### M-step (PRML 9.4)
+
+- E-step에서 얻은 $q^*(\mathbf{Z}) = p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta}^{\text{old}})$를 고정하고, $\mathcal{L}(q^*, \boldsymbol{\theta})$를 $\boldsymbol{\theta}$에 대해 최대화:
+
+$$\mathcal{L}(q^*, \boldsymbol{\theta}) = \sum_{\mathbf{Z}} q^*(\mathbf{Z}) \ln p(\mathbf{X}, \mathbf{Z}|\boldsymbol{\theta}) - \underbrace{\sum_{\mathbf{Z}} q^*(\mathbf{Z}) \ln q^*(\mathbf{Z})}_{\text{const w.r.t. } \boldsymbol{\theta}}$$
+
+- 따라서 $\boldsymbol{\theta}$에 대한 최적화는:
+
+$$\boldsymbol{\theta}^{\text{new}} = \arg\max_{\boldsymbol{\theta}} \sum_{\mathbf{Z}} p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta}^{\text{old}}) \ln p(\mathbf{X}, \mathbf{Z}|\boldsymbol{\theta})$$
+
+- 이것이 바로 **Expected Complete-Data Log-Likelihood**:
+
+$$\boxed{\boldsymbol{\theta}^{\text{new}} = \arg\max_{\boldsymbol{\theta}} \; \mathcal{Q}(\boldsymbol{\theta}, \boldsymbol{\theta}^{\text{old}}) \;=\; \arg\max_{\boldsymbol{\theta}} \; \mathbb{E}_{p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta}^{\text{old}})} \left[ \ln p(\mathbf{X}, \mathbf{Z}|\boldsymbol{\theta}) \right]}$$
+
+---
+
+# Background: EM Algorithm
+
+### EM의 수렴성 증명 (Monotonic Increase)
+
+- **목표**: 매 iteration마다 $\ln p(\mathbf{X}|\boldsymbol{\theta}^{\text{new}}) \geq \ln p(\mathbf{X}|\boldsymbol{\theta}^{\text{old}})$임을 보임
+
+**Step 1.** E-step 후: $q(\mathbf{Z}) = p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta}^{\text{old}})$이면 $\text{KL} = 0$
+
+$$\therefore \; \ln p(\mathbf{X}|\boldsymbol{\theta}^{\text{old}}) = \mathcal{L}(q, \boldsymbol{\theta}^{\text{old}})$$
+
+**Step 2.** M-step에서 $\boldsymbol{\theta}^{\text{new}}$는 $\mathcal{L}$을 최대화하므로:
+
+$$\mathcal{L}(q, \boldsymbol{\theta}^{\text{new}}) \geq \mathcal{L}(q, \boldsymbol{\theta}^{\text{old}})$$
+
+**Step 3.** Decomposition에서 항상:
+
+$$\ln p(\mathbf{X}|\boldsymbol{\theta}^{\text{new}}) = \mathcal{L}(q, \boldsymbol{\theta}^{\text{new}}) + \underbrace{\text{KL}(q \| p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta}^{\text{new}}))}_{\geq 0}$$
+
+$$\therefore \; \ln p(\mathbf{X}|\boldsymbol{\theta}^{\text{new}}) \geq \mathcal{L}(q, \boldsymbol{\theta}^{\text{new}}) \geq \mathcal{L}(q, \boldsymbol{\theta}^{\text{old}}) = \ln p(\mathbf{X}|\boldsymbol{\theta}^{\text{old}}) \quad \blacksquare$$
+
+---
+
+# Background: EM Algorithm
+
+### EM Algorithm의 직관적 이해
+
+.pull-left[
+**E-step의 의미:**
+- Lower bound $\mathcal{L}$을 log-likelihood에 **빈틈없이 밀착**시킴
+- $q(\mathbf{Z})$를 posterior $p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta}^{\text{old}})$로 설정
+- KL = 0이 되어 $\mathcal{L} = \ln p(\mathbf{X}|\boldsymbol{\theta}^{\text{old}})$
+
+**M-step의 의미:**
+- 밀착된 lower bound $\mathcal{L}$을 $\boldsymbol{\theta}$에 대해 **최대화**
+- $\boldsymbol{\theta}$가 바뀌면 KL $> 0$이 되어 이전 bound보다 올라감
+- 다음 E-step에서 다시 밀착 → 반복
+]
+
+.pull-right[
+**요약하면:**
+
+| Step | 고정 | 최적화 대상 | 결과 |
+|------|------|-------------|------|
+| E-step | $\boldsymbol{\theta}^{\text{old}}$ | $q(\mathbf{Z})$ | $q = p(\mathbf{Z}\|I, \boldsymbol{\theta}^{\text{old}})$ |
+| M-step | $q(\mathbf{Z})$ | $\boldsymbol{\theta}$ | $\boldsymbol{\theta}^{\text{new}}$ |
+
+- E와 M을 교대로 반복하면 $\ln p(\mathbf{X}|\boldsymbol{\theta})$가 **단조 증가**
+- Local maximum으로 수렴 보장
+]
+
+---
+
+# Background: EM Algorithm
+
+### MAP(Maximum A Posteriori)로의 확장 (PRML 9.4)
+
+- 만약 $\boldsymbol{\theta}$에 대한 prior $p(\boldsymbol{\theta})$가 존재한다면, EM은 MAP 추정으로 확장 가능
+
+- **목표**: $\ln p(\boldsymbol{\theta}|\mathbf{X}) = \ln p(\mathbf{X}|\boldsymbol{\theta}) + \ln p(\boldsymbol{\theta}) - \ln p(\mathbf{X})$ 최대화
+
+- M-step이 다음과 같이 변경됨:
+
+$$\boldsymbol{\theta}^{\text{new}} = \arg\max_{\boldsymbol{\theta}} \left\{ \mathcal{Q}(\boldsymbol{\theta}, \boldsymbol{\theta}^{\text{old}}) + \ln p(\boldsymbol{\theta}) \right\}$$
+
+- E-step은 동일하게 유지됨
+
+- 이 확장이 바로 **GSO-SLAM에서 사용하는 형태**
+  - Latent variable에 대한 posterior에 **prior term**(Normal Consistency Loss)이 추가됨
+
+---
+
+# Background: EM Algorithm
+
+### $\delta$-function Approximation (Point Estimate)
+
+- 일반적인 EM에서는 $q(\mathbf{Z})$가 full posterior distribution
+- 하지만 계산이 어려운 경우, **$\delta$-function으로 근사**할 수 있음:
+
+$$q(\mathbf{Z}) \approx \delta(\mathbf{Z} - \mathbf{Z}^*)$$
+
+- 이 경우 E-step의 기대값이 $\mathbf{Z}^*$에서의 **point evaluation**으로 단순화됨:
+
+$$\mathbb{E}_{q(\mathbf{Z})}[\ln p(\mathbf{X}, \mathbf{Z}|\boldsymbol{\theta})] = \ln p(\mathbf{X}, \mathbf{Z}^*|\boldsymbol{\theta})$$
+
+- 즉, E-step이 **MAP estimation**으로 변환:
+
+$$\mathbf{Z}^* = \arg\max_{\mathbf{Z}} \; p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta}^{\text{old}}) = \arg\max_{\mathbf{Z}} \; \ln p(\mathbf{X}, \mathbf{Z}|\boldsymbol{\theta}^{\text{old}})$$
+
+- **GSO-SLAM**은 이 방식을 사용: $q(\mathcal{G}) \approx \delta(\mathcal{G} - \mathcal{G}^*)$
+
+---
+
+# Background: EM Algorithm
+
+### GSO-SLAM에서의 EM 변수 대응
+
+| PRML 표기 | GSO-SLAM 표기 | 의미 |
+|-----------|-------------|------|
+| $\mathbf{X}$ | $I$ | Observed data (이미지 시퀀스) |
+| $\mathbf{Z}$ | $\mathcal{G}$ | Latent variable (2D Gaussian scene) |
+| $\boldsymbol{\theta}$ | $(P, D)$ | Parameters (camera pose, depth map) |
+| $p(\mathbf{X}, \mathbf{Z}\|\boldsymbol{\theta})$ | $p(I, \mathcal{G}\|P, D)$ | Complete-data likelihood |
+| $q(\mathbf{Z})$ | $\delta(\mathcal{G} - \mathcal{G}^*)$ | $\delta$-function approximation |
+| $\mathcal{Q}(\boldsymbol{\theta}, \boldsymbol{\theta}^{\text{old}})$ | M-step의 BA + Depth Reg. | Expected complete-data log-likelihood |
+
+- Complete-data log-likelihood:
+
+$$\log p(I, D, \mathcal{G}|P) = \log p(I, \mathcal{G}|D, P) + \underbrace{\log p(D|P)}_{\text{uniform prior} \to \text{const}}$$
+
+---
+
+# Method
+
+### Preliminaries: Direct Sparse Odometry (DSO)
+
+- Visual SLAM은 observed image $I$로부터 optimal scene geometry $D^*$와 camera poses $P^*$를 추정하는 문제
+
+$$P^*, D^* = \arg\max_{P, D} \; p(I|P, D) \tag{1}$$
+
+- DSO는 가중 SSD(Sum of Squared Differences) 기반의 photometric loss 정의:
+
+$$E_{\mathbf{p}}^j = \sum_{\mathbf{p} \in \mathcal{N}_p} \left\| \left( I_j[\mathbf{p}'] - b_j \right) - \frac{t_j e^{a_j}}{t_i e^{a_i}} \left( I_i[\mathbf{p}] - b_i \right) \right\| \tag{2}$$
+
+  - $i, j$: reference/target frame, $\mathbf{p}'$: reprojected pixel, $a, b$: brightness parameters, $t$: exposure time
+
+- Sliding window 기반 Bundle Adjustment:
+
+$$E_{\text{photo}} := \sum_{i \in \mathcal{F}} \sum_{\mathbf{p} \in \mathcal{P}_i} \sum_{j \in \text{obs}(\mathbf{p})} E_{\mathbf{p}}^j \tag{3}$$
+
+---
+
+# Method
+
+### Preliminaries: 2D Gaussian Splatting (2DGS)
+
+- Dense geometry estimation은 일반적으로 ill-posed → 강한 scene geometry model이 필요
+- **2DGS**는 이러한 dense geometric information을 효과적으로 포착하는 대안적 표현
+
+- 각 2D Gaussian $g_i \subset \mathcal{G}$는 다음의 성질로 정의:
+  - Mean: $\boldsymbol{\mu}_i$, Covariance: $\Sigma_i$, Opacity: $\alpha_i$, Color: $c_i$
+  - 계산 효율을 위해 **Spherical Harmonics 생략**
+
+- **2DGS vs 3DGS**:
+  - 3DGS: 3D에서 pixel-ray intersection으로 Gaussian 값을 평가
+  - 2DGS: **2D에서 ray-splat intersection** → multi-view consistent depth와 더 나은 geometric accuracy
+  - 따라서 SLAM과 surface reconstruction에 유용
+
+---
+
+# Method
+
+### Joint Optimization: 문제 정의
+
+- Naive한 coupling: BA에서 semi-dense map → GS 초기화, keyframe pose → 2DGS optimization
+  - 두 프로세스가 **독립적**으로 동작 → geometric information 공유 불가
+  - BA와 2DGS가 **별도의 scene representation**을 최적화 → 중복 연산
+
+- **GSO-SLAM의 접근**: 두 최적화를 양방향으로 결합
+  - DSO tracking과 dense reconstruction이 seamless하게 상호작용
+  - 통합된 framework 내에서 error를 공동으로 수정, isolated error propagation 방지
+
+- 문제: Gaussian $\mathcal{G}$, camera pose $P$, depth $D$를 동시에 최적화 → **highly nonlinear, computationally demanding**
+- 해결: **EM Algorithm**으로 안정적 수렴 보장
+
+---
+
+# Method
+
+### Joint Optimization: EM Formulation
+
+- Observed images $I$, camera poses $P$, depth maps $D$, 2D Gaussians $\mathcal{G}$에 대해
+- Complete-data log-likelihood:
+
+$$\log p(I, D, \mathcal{G}|P) \tag{4}$$
+
+- $D$를 pseudo-observation으로 간주: $\mathcal{G}$와 $P$가 정해지면 depth는 결정적으로 내포됨
+  - $p(D|P)$에 non-informative (uniform) prior 부여 → 최적화에 영향 없음
+
+- Joint density의 분해:
+
+$$p(I, D, \mathcal{G}|P) = p(I, \mathcal{G}|D, P) \cdot p(D|P)$$
+
+---
+
+# Method
+
+### Joint Optimization: E-step 유도
+
+- E-step: $P$와 $D$를 고정, $\mathcal{G}$를 업데이트
+
+$$\mathcal{L}(q, P, D) = \mathbb{E}_{q(\mathcal{G})} \left[ \log p(I, D, \mathcal{G}|P) \right] \tag{5}$$
+
+- $q(\mathcal{G})$: latent variable $\mathcal{G}$의 approximate posterior $p(\mathcal{G}|I, P, D)$
+- $\delta$-function approximation $q(\mathcal{G}) \approx \delta(\mathcal{G} - \mathcal{G}^*)$ 적용 → MAP estimation:
+
+$$\mathcal{G}^* = \arg\max_{\mathcal{G}} \log p(\mathcal{G}|I, D, P)$$
+
+- Bayes' rule 적용:
+
+$$\propto \arg\max_{\mathcal{G}} \log p(I|\mathcal{G}, D, P) \cdot p(D|\mathcal{G}, P) \cdot p(\mathcal{G}|P)$$
+
+$$= \arg\min_{\mathcal{G}} \underbrace{-\log p(I|\mathcal{G}, D, P)}_{\text{RGB Rendering Loss}} \underbrace{- \log p(D|\mathcal{G}, P)}_{\text{Semi-dense Depth Loss}} \underbrace{- \log p(\mathcal{G}|P)}_{\text{Normal Consistency Loss}} \tag{6}$$
+
+---
+
+# Method
+
+### Joint Optimization: E-step 유도 (상세)
+
+- 앞서 도출한 MAP(negative log-posterior)를 각 loss term으로 정식화:
+
+$$\mathcal{G}^* = \arg\min_{\mathcal{G}} \; \underbrace{(1 - \lambda)\mathcal{L}_1(I_r, I_{gt}) + \lambda \mathcal{L}_{D\text{-SSIM}}(I_r, I_{gt})}_{\text{RGB Rendering Loss}} + \underbrace{\lambda_d \mathcal{L}_1(D_r, D)}_{\text{Semi-dense Depth Loss}} + \underbrace{\lambda_n \mathcal{L}_n}_{\text{Normal Consistency Loss}} \tag{7}$$
+
+- **RGB Rendering Loss** $-\log p(I|\mathcal{G}, D, P)$:
+  - Rendered image $I_r$와 observed image $I_{gt}$ 간의 photometric error
+  - 기존 GS method의 loss와 동일
+
+- **Semi-dense Depth Loss** $-\log p(D|\mathcal{G}, P)$:
+  - 2D Gaussian에서 얻은 rendered depth $D_r$와 현재 depth estimate $D$ 간의 L1 norm
+  - 두 representation 간의 일관성을 유지
+
+- **Normal Consistency Loss** $-\log p(\mathcal{G}|P)$:
+  - Prior term: 법선 벡터의 일관성을 강제하여 smooth한 surface reconstruction 유도
+
+---
+
+# Method
+
+### Joint Optimization: M-step 유도
+
+- E-step에서 얻은 $\mathcal{G}^*$를 고정, $P$와 $D$를 업데이트:
+
+$$P^*, D^* = \arg\max_{P, D} \log p(I, D, \mathcal{G}^*|P)$$
+
+$$= \arg\min_{P, D} \underbrace{-\log p(I|\mathcal{G}^*, D, P)}_{\text{BA Term}} \underbrace{- \log p(D|\mathcal{G}^*, P)}_{\text{Depth Regularization Term}} - \log p(\mathcal{G}^*|P) \tag{8}$$
+
+- **BA Term**: multi-view geometry 기반 photometric error (Eq. 3과 동일)
+  - $\mathcal{G}^*$가 고정이므로 $-\log p(\mathcal{G}^*|P)$는 $P$에 대한 영향 미미 → 무시 가능
+
+- **Depth Regularization Term**: E-step의 $\mathcal{G}^*$에서 추론된 depth 정보와 $D$의 일관성 유지
+  - 매 iteration마다 $\mathcal{G}^*$로부터 depth를 다시 렌더링하면 **연산 비용 과다**
+  - 대신, **weighted averaging** 방식 사용 → Bayesian initialization으로서 basin of attraction 내에서 안정적
+  - 명시적 regularization 생략 → high-frequency geometric detail 복원에 유리
+
+---
+
+# Method
+
+### Joint Optimization: EM에서 Loss 유도 정리
+
+.pull-left[
+**PRML EM 일반 형태:**
+1. E-step: $q(\mathbf{Z}) = p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta}^{\text{old}})$
+2. M-step: $\boldsymbol{\theta}^{\text{new}} = \arg\max_{\boldsymbol{\theta}} \mathcal{Q}(\boldsymbol{\theta}, \boldsymbol{\theta}^{\text{old}})$
+
+**$\delta$-function 근사 시:**
+1. E-step: $\mathbf{Z}^* = \arg\max_{\mathbf{Z}} \; p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta})$
+2. M-step: $\boldsymbol{\theta}^* = \arg\max_{\boldsymbol{\theta}} \log p(\mathbf{X}, \mathbf{Z}^*|\boldsymbol{\theta})$
+]
+
+.pull-right[
+**GSO-SLAM에서:**
+1. **E-step** ($P, D$ 고정, $\mathcal{G}$ 최적화):
+   - $\mathcal{G}^* = \arg\min_{\mathcal{G}} \; \mathcal{L}_{\text{E-step}}$ (Eq. 7)
+   - RGB loss + Depth loss + Normal loss
+
+2. **M-step** ($\mathcal{G}^*$ 고정, $P, D$ 최적화):
+   - $(P^*, D^*) = \arg\min_{P,D} \; \mathcal{L}_{\text{M-step}}$ (Eq. 8)
+   - BA Term + Depth Regularization
+   
+3. 반복 → **수렴 보장** (ELBO 단조 증가)
+]
+
+---
+
+# Method
+
+### Joint Optimization: 수렴성 연결
+
+- PRML의 EM 수렴성 증명에서 보았듯이:
+
+$$\ln p(I|\boldsymbol{\theta}^{\text{new}}) \geq \ln p(I|\boldsymbol{\theta}^{\text{old}})$$
+
+- GSO-SLAM에서 $\boldsymbol{\theta} = (P, D)$이고, $\delta$-function 근사를 사용하므로:
+  - E-step에서 $\mathcal{G}^*$를 MAP로 찾으면, $\mathcal{L}(q, \boldsymbol{\theta})$를 최대화 (lower bound tight)
+  - M-step에서 $(P, D)$를 최적화하면, lower bound를 올림
+  - 함께 log-likelihood를 **단조 증가**시킴
+
+- **실제 구현에서의 핵심**:
+  - E-step (2DGS optimization)은 별도 thread에서 병렬 실행
+  - M-step (DSO의 BA)은 main thread에서 실행
+  - 추가 연산 비용 없이 bidirectional coupling 달성
+
+---
+
+# Method
+
+### Gaussian Splat Initialization: 개요
+
+- DSO는 최적화 과정에서 **image gradient를 이미 계산** → 이를 재활용
+- Image gradient를 projected Gaussian Splat distribution의 확률적 추정으로 사용
+- 추가 연산 없이 초기 Gaussian 파라미터 결정
+
+- 3단계 프로세스:
+  1. Keyframe의 image intensity와 gradient로부터 **2D covariance** 추정
+  2. Multiple keyframe의 2D covariance를 결합하여 **3D covariance** 계산
+  3. Eigen-decomposition으로 rotation과 scaling 파라미터 추출
+
+.center[
+<img src="fig/fig3.png" width="75%"/>
+]
+
+---
+
+# Method
+
+### Gaussian Splat Initialization: 2D Covariance 추정
+
+- Image intensity가 Gaussian distribution을 따른다고 가정:
+
+$$I(x, y) = \frac{1}{2\pi |\Sigma_{2D}|^{1/2}} \exp\left( -\frac{1}{2} (\mathbf{r} - \mathbf{p})^\top (\Sigma_{2D})^{-1} (\mathbf{r} - \mathbf{p}) \right) \tag{9}$$
+
+  - $\mathbf{r} = [x, y]^\top$: image 좌표
+  - $\mathbf{p} = [p_x, p_y]^\top$: distribution의 center
+
+- Log-probability의 gradient를 계산:
+
+$$\nabla_{\mathbf{r}} \log I(x, y) = -\alpha (\Sigma_{2D})^{-1} (\mathbf{r} - \mathbf{p}) \tag{10}$$
+
+  - $\alpha$: scaling factor
+
+- 다양한 $\mathbf{r}$에 대해 이 식을 세우고, **least-squares**로 $\Sigma_{2D}$를 추정
+
+---
+
+# Method
+
+### Gaussian Splat Initialization: 2D → 3D Covariance
+
+- 동일한 3D point가 여러 keyframe $\text{obs}(\mathbf{p})$에서 관측됨
+- 각 keyframe $i$에서의 2D covariance $\Sigma_i^{2D}$는 하나의 3D covariance $\Sigma_{3D}$에 대응
+
+- 2D-3D covariance 관계 (EWA Splatting):
+
+$$\Sigma_i^{2D} = J_i W_i \Sigma_{3D} W_i^\top J_i^\top, \quad i \in \text{obs}(\mathbf{p}) \tag{11}$$
+
+  - $J$: 3D point → image plane의 Jacobian matrix
+  - $W$: world → camera 좌표 변환
+
+- 모든 observation의 방정식을 선형화하여 **least-squares**로 $\Sigma_{3D}$ 추정
+
+---
+
+# Method
+
+### Gaussian Splat Initialization: Covariance 보정
+
+- Closed-form 해로 얻은 covariance가 유효한 covariance matrix의 조건을 만족하지 못할 수 있음
+  - Covariance matrix는 **symmetric positive semi-definite**이어야 함
+
+- 보정 전략:
+
+$$\tilde{\Sigma}_{3D} = \begin{cases} \Sigma_{3D} + \epsilon \mathbf{I} & \text{(Regularization)} \\ U \tilde{\Lambda} U^\top & \text{(Eigenvalue clipping)} \end{cases} \tag{12}$$
+
+  - $\epsilon > 0$: 작은 상수
+  - $U$: $\Sigma_{3D}$의 eigenvector matrix
+  - $\tilde{\Lambda} = \text{diag}(\max(\lambda_i, \epsilon))$: 음의 eigenvalue를 clip
+
+- Eigen-decomposition으로 최종 파라미터 추출:
+  - Eigenvector matrix → **Rotation matrix** $R$
+  - Eigenvalue의 대각 행렬 → **Scaling matrix** $S$ (최소 eigenvalue를 0으로 설정 → 2DGS)
+  - $\alpha$: $S$의 최대 원소로 나눈 preset 값으로 정의하여 regularize
+
+---
+
+# Method
+
+### SLAM Framework 개요
+
+.center[
+<img src="fig/fig2.png" width="80%"/>
+]
+
+---
+
+# Method
+
+### SLAM Framework: Localization & M-step
+
+1. **새 frame 도착 시**: Eq. (2)의 energy function으로 two-frame direct image alignment → pose 추정
+
+2. **Keyframe 선택**: FOV 변화, translation, exposure time 기반
+   - 새 keyframe이 선택되면 sliding window에 추가
+
+3. **Local BA (M-step)**:
+   - Camera pose, affine brightness parameter, inverse depth, camera intrinsic 최적화
+   - 이것이 EM의 **M-step**에 해당
+
+4. **Depth Regularization**:
+   - Keyframe의 sparse depth map + 이전 E-step에서 업데이트된 2DGS rendered depth map
+   - 두 depth의 **평균**을 초기 depth estimate로 사용
+   - Dense reconstruction의 이점을 활용하면서 DSO-derived depth의 신뢰성 보존
+   - 이후 Eq. (3)으로 camera pose와 semi-dense depth map을 최적화
+
+---
+
+# Method
+
+### SLAM Framework: E-step Optimization
+
+- Main thread가 tracking과 keyframe 선택을 처리하는 동안, **2DGS scene optimization은 병렬 thread**에서 실행
+
+- 새 keyframe이 선택될 때마다:
+  1. **Gaussian Splat Initialization** (Sec. III-C)으로 새 Gaussian splat의 초기 형태 정의
+  2. Reconstructed scene에 삽입
+  3. 원본 GS의 **densification** 기법도 추가로 적용하여 finer detail 개선
+
+- **Windowed refinement**:
+  - 최근 추가된 keyframe을 우선적으로 최적화
+  - Active window가 충분히 학습되면, 추가 keyframe을 샘플링하여 다양한 viewpoint 반영
+
+- **Real-time 성능 보장**:
+  - E-step이 별도 thread에서 지속적으로 scene Gaussian을 refine
+  - Front-end는 real-time으로 유지
+
+---
+
+# Experiments
+
+### Implementation Details
+
+- **구현**: C++, 2DGS는 LibTorch 기반
+- **Loss hyperparameters** (Eq. 7): $\lambda = 0.2$, $\lambda_d = 500$, $\lambda_n = 0.1$
+- **Hardware**: Ryzen 5900X CPU, 64GB RAM, NVIDIA RTX 4090 GPU
+
+### Datasets & Metrics
+- **Replica** (synthetic): 8개 scene
+- **TUM-RGBD** (real-world, Kinect v1): 3개 sequence
+- **INS Dataset**: Large-scale indoor corridor
+- **Self-captured**: Quadrupedal robot
+- **Metrics**: ATE RMSE (tracking), PSNR/SSIM/LPIPS (photometric), L1 depth (geometric)
+
+---
+
+# Experiments
+
+### Tracking Accuracy — Replica
+
+.center[
+<img src="fig/table1.png" width="85%"/>
+]
+
+- RGB 기반 방법 중 대부분의 scene에서 **최고 성능**
+- Photo-SLAM 대비 최대 **50% 낮은 tracking error**
+- RGB-D 기반 방법과도 **비슷한 수준**의 정확도
+
+---
+
+# Experiments
+
+### Tracking Accuracy — TUM-RGBD
+
+.center[
+<img src="fig/table2.png" width="80%"/>
+]
+
+- TUM-RGBD는 Kinect v1의 심한 noise가 있어 direct method에게는 불리
+- Feature-based 방법(Orbeez, Photo-SLAM)보다 다소 낮은 tracking accuracy
+- 그러나 **MGSO* 대비 높은 tracking accuracy** → Joint optimization이 tracking robustness를 강화
+
+---
+
+# Experiments
+
+### Reconstruction Quality & System Speed — Replica
+
+.center[
+<img src="fig/table3.png" width="85%"/>
+]
+
+- **PSNR 34.48 dB**, **LPIPS 0.060**, **Depth L1 8.12 cm** — 대부분의 metric에서 최고 성능
+- MonoGS 대비 **36배 빠름**, SplaTAM 대비 **141배 빠름** (30 FPS)
+- Gaussian Initialization이 최적화를 가속화한 결과
+
+---
+
+# Experiments
+
+### Qualitative Results — Replica
+
+.center[
+<img src="fig/fig4.png" width="75%"/>
+]
+
+- 다른 방법들에 비해 **우수한 geometric accuracy와 photometric fidelity**
+
+---
+
+# Experiments
+
+### Reconstruction Quality — TUM-RGBD
+
+.center[
+<img src="fig/table4.png" width="80%"/>
+]
+
+- TUM의 심한 noise에도 불구하고, feature-based 방법 (Orbeez-SLAM, Photo-SLAM)보다 풍부한 geometry 추출
+- MonoGS가 fr1, fr3에서 약간 더 높은 quality를 달성하지만, 속도가 **9.6배 느림**
+
+---
+
+# Experiments
+
+### Real-world & Scalability
+
+.pull-left[
+**Self-captured Dataset (Quadrupedal Robot)**:
+- 상당한 camera motion jitter에도 불구하고 우수한 map reconstruction quality
+
+.center[
+<img src="fig/fig5.png" width="90%"/>
+]
+]
+
+.pull-right[
+**Large-scale INS Dataset**:
+
+.center[
+<img src="fig/table5.png" width="100%"/>
+]
+
+- Pure VO로 MonoGS보다 높은 정확도
+- Photo-SLAM (Loop Closure 있음)보다 LC_3, LC_4에서 우수
+- **Loop Closing 없이도** 누적 drift 최소화
+- PSNR: 23.11 dB vs MonoGS 16.76 / Photo-SLAM 17.62
+]
+
+---
+
+# Experiments
+
+### Runtime Analysis
+
+.center[
+<img src="fig/table6.png" width="70%"/>
+]
+
+- Tracking: 항상 low latency (local keyframe 기반)
+- M-step: windowed optimization → scene scale에 무관하게 **일정한 복잡도**
+- 카메라 모션이 runtime에 더 큰 영향 (handheld > smooth trajectory)
+- GPU memory: Small 2.8GB / Large 5.8GB
+
+---
+
+# Experiments
+
+### Ablation Study: Gaussian Splat Initialization
+
+.center[
+<img src="fig/table7.png" width="70%"/>
+]
+
+- **KNN 기반**: 기존 GS/Photo-SLAM 방식, PSNR 25.51, 추가 2700 iter (64.4s) 필요
+- **Constant (Isotropic)**: PSNR 31.68, 추가 1200 iter (20.4s) 필요
+- **Obs (제안)**: PSNR **34.48**, 추가 iteration/시간 불필요
+- Image structural information을 활용하는 것이 geometric distribution만 사용하는 것보다 효과적
+
+---
+
+# Experiments
+
+### Ablation Study: Joint Optimization
+
+.center[
+<img src="fig/table8.png" width="60%"/>
+]
+
+- Joint Optimization 없이 (naive coupling): PSNR 34.10, ATE 0.688, Depth L1 9.744
+- Joint Optimization 적용: PSNR **34.48**, ATE **0.462**, Depth L1 **8.124**
+- Scene geometry가 제대로 공유되면 tracking과 mapping **모두 개선**
+
+---
+
+# Experiments
+
+### Failure Cases
+
+.center[
+<img src="fig/fig6.png" width="70%"/>
+]
+
+- **(a, b)**: 안정적인 motion → robust
+- **(c, d)**: 심한 motion blur → photometric consistency 위반 → tracking drift → geometric distortions
+- **(e, f, g)**: Textureless region (흰 벽) → image gradient 부족 → sampling 불가 → 불완전한 geometry
+  - 그럼에도 제안된 initialization은 PSNR 25.51로 Constant (22.27), KNN (25.23) 대비 우수
+
+---
+
+# Conclusion
+
+1. **Bidirectional Coupling**: VO와 GS를 seamless하게 통합
+   - 추가 연산 비용 없이 tracking과 mapping 성능 모두 향상
+
+2. **EM Framework**: Joint optimization을 EM으로 정식화
+   - E-step: $\mathcal{G}$를 MAP로 추정 (RGB + Depth + Normal loss)
+   - M-step: $(P, D)$를 BA + Depth Regularization으로 최적화
+   - PRML의 수렴성 보장 → log-likelihood 단조 증가
+
+3. **Gaussian Splat Initialization**: DSO의 image gradient 재활용
+   - 2D covariance → 3D covariance 추정 → Eigen-decomposition
+   - Heuristic 초기화 대비 수렴 가속화 및 reconstruction quality 향상
+
+4. **성능**: Real-time (30 FPS)으로 SOTA 수준의 photometric/geometric fidelity 및 tracking accuracy 달성
+
+---
+
+# Conclusion
+
+### 한계 및 향후 연구
+
+- Direct method 특성상 **severe motion blur**에 취약
+  - Photometric consistency 가정 위반 시 tracking drift 발생
+
+- **Textureless region**에서 initialization이 sparse해짐
+  - Image gradient 기반이므로 uniform surface에서 샘플링 어려움
+
+- 현재 semi-dense map을 **discrete point 집합으로 모델링**
+  - 향후 image structure를 고려한 더 정밀한 모델링으로 coupled approach의 이점 극대화 예정
+
+### 느낀 점
+- EM으로 tracking과 mapping을 jointly optimize하는 접근이 깔끔
+- DSO의 기존 연산(image gradient)을 재활용하여 추가 비용 없이 초기화하는 아이디어가 인상적
+- Loop closure 없이도 large-scale에서 낮은 drift를 보여 VO의 견고함을 입증

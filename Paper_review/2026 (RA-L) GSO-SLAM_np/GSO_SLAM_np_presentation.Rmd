@@ -1,6 +1,6 @@
 ---
-# xaringan::inf_mr('Paper_review/2026 (RA-L) GSO-SLAM/GSO_SLAM_presentation.Rmd')
-# pagedown::chrome_print('Paper_review/2026 (RA-L) GSO-SLAM/GSO_SLAM_presentation.html')
+# xaringan::inf_mr('Paper_review/2026 (RA-L) GSO-SLAM_np/GSO_SLAM_np_presentation.Rmd')
+# pagedown::chrome_print('Paper_review/2026 (RA-L) GSO-SLAM_np/GSO_SLAM_np_presentation.html')
 title: "GSO-SLAM: Bidirectionally Coupled Gaussian Splatting and Direct Visual Odometry"
 subtitle: "2026 (RA-L)"
 author: |
@@ -229,7 +229,7 @@ $$\mathbf{p}' = \Pi_c\left(\mathbf{R}\,\Pi_c^{-1}(\mathbf{p}, d_p) + \mathbf{t}\
 current frame에서의 pixel $\mathbf{p}'$를 구할 수 있음
 - 여기서, 조도의 변화를 보정하기 위해 bias를 빼고, exposure time을 보정하는 항이 추가됨
 - 마지막으로 앞서 구한 photometric error를 모든 keyframe과 선정된 pixel들에 대해 합산하면 photometric loss가 됨
-  - 이 loss가 곧 M-step에서 최적화하려는 loss가 됨(이따뒤에서 만나요🖐️)
+
 
 $$E_{\text{photo}} := \sum_{i \in \mathcal{F}} \sum_{\mathbf{p} \in \mathcal{P}_i} \sum_{j \in \text{obs}(\mathbf{p})} E_{\mathbf{p}j}$$
 
@@ -261,166 +261,6 @@ pose가 정확하지 않을 때에는 error을 가진채로 열심히 최적화
 
 ---
 # Method
-
-### Joint optimization - EM Algorithm
-
-- Expectation & Maximization (EM) 알고리즘은, Hard assignment인 K-means clustering과 달리, 
-latent variable의 확률적 분포를 고려하여 최적화하는 방법, **Soft assignment..!**
-
-- EM 증명을 위해서, PRML책의 내용을 따라가보면,,,
-- GMM의 확률분포는 아래와 같이 표현
-
-$$p(\mathbf{x}) = \sum_{k=1}^{K} \pi_k \mathcal{N}(\mathbf{x} \mid \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)$$
-
-- 여기서, $\mathbf{x}$가 어느 distribution에 속하는지 모르기에, K-dimensional binary random variable $z$를 추가 
-  - latent variable의 등장, 1-of-K encoding, ($0 \leq \pi_k \leq 1$)
-  $$p(z_k = 1) = \pi_k, \quad \sum_{k=1}^{K} \pi_k = 1,\quad p(\mathbf{z}) = \prod_{k=1}^{K} \pi_k^{z_k}$$
-
----
-# Method
-
-- 즉, latent variable인 $z_k$가 1일때, $\mathbf{x}$가 $k$번째 Gaussian에서 나올 확률
-$$p(\mathbf{x}|z_k = 1) = \mathcal{N}(\mathbf{x}|\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)$$
-
-- 따라서, 모든 경우의 수를 고려해서 수식을 general하게 다시 쓰면,
-$$p(\mathbf{x}|\mathbf{z}) = \prod_{k=1}^{K} \mathcal{N}(\mathbf{x}|\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)^{z_k}$$
-
-- 앞서 만든 latent variable의 확률과, conditional probability를 곱하면? joint probability!(product rule)
-$$ p(\mathbf{z})p(\mathbf{x}|\mathbf{z}) = p(\mathbf{x}, \mathbf{z}) = \prod_{k=1}^{K} \pi_k^{z_k} \mathcal{N}(\mathbf{x}|\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)^{z_k}$$
-
-- 여기서, Sum rule을 이용해서 latent variable을 marginalized out 하면, 우리가 원래 구하려던 GMM의 확률분포!
-$$p(\mathbf{x}) = \sum_{\mathbf{z}} p(\mathbf{z})p(\mathbf{x}|\mathbf{z}) = \sum_{k=1}^{K} \pi_k \mathcal{N}(\mathbf{x}|\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)$$
-
----
-
-# Method
-
-- 즉, GMM의 확률분포는, latent variable $z$가 1인 경우의 확률과, $z$의 확률을 곱해서 모든 경우의 수를 고려한 joint probability를 구하고,
-- 이 joint probability에서 latent variable을 marginalized out 하면, 우리가 원래 구하려던 GMM의 확률분포가 나옴
-- 여기서, **responsibility** $\gamma(z_k)$는, $\mathbf{x}$가 주어졌을 때 $k$번째 component에 속할 사후 확률(posterior, Bayes' rule)
-
-$$ p(\mathbf{z} | \mathbf{x}) = \frac{p(\mathbf{z}) p(\mathbf{x}|\mathbf{z}) }{p(\mathbf{x})} $$ 
-
-$$\gamma(z_k) \equiv p(z_k = 1 \mid \mathbf{x}) = \frac{p(z_k=1)\,p(\mathbf{x}|z_k=1)}{\displaystyle\sum_{j=1}^{K} p(z_j=1)\,p(\mathbf{x}|z_j=1)} = \frac{\pi_k \mathcal{N}(\mathbf{x}|\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)}{\displaystyle\sum_{j=1}^{K} \pi_j \mathcal{N}(\mathbf{x}|\boldsymbol{\mu}_j, \boldsymbol{\Sigma}_j)}$$
-
-- 이것이 **E step**에 해당한다!
-
----
-
-# Method
-
-- 다음은 **M step**에서, 이 responsibility를 이용해서 
-GMM의 파라미터 $\pi_k, \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k$를 업데이트 하는 것  
-
-- Point가 여러개 주어졌을 때, 그리고 업데이트할 파라미터들을 추가하고 log를 씌워 수식을 다시 써보면, 
-
-
-$$\ln p(\mathbf{X}|\boldsymbol{\pi}, \boldsymbol{\mu}, \boldsymbol{\Sigma}) = \sum_{n=1}^{N} \ln \left\{ \sum_{k=1}^{K} \pi_k \mathcal{N}(\mathbf{x}_n | \boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k) \right\}$$
-
-- 위 식을 $\boldsymbol{\mu}_k$에 대해 미분해서 0으로 놓고 풀면, $\boldsymbol{\mu}_k$의 closed-form 해를 얻을 수 있음
-
-$$0 = -\sum_{n=1}^{N} \underbrace{\frac{\pi_k \mathcal{N}(\mathbf{x}_n|\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k)}{\sum_j \pi_j \mathcal{N}(\mathbf{x}_n|\boldsymbol{\mu}_j, \boldsymbol{\Sigma}_j)}}_{\gamma(z_{nk})} \boldsymbol{\Sigma}_k^{-1}(\mathbf{x}_n - \boldsymbol{\mu}_k)$$
-
-- $\boldsymbol{\Sigma}_k$을 곱하고 정리하면 $\boldsymbol{\mu}_k$의 closed-form 해:
-
-$$\qquad \boldsymbol{\mu}_k = \frac{1}{N_k}\sum_{n=1}^{N}\gamma(z_{nk})\mathbf{x}_n, \qquad N_k = \sum_{n=1}^{N}\gamma(z_{nk})$$
-
-
----
-# Method
-.pull-left[
-
-- 양변에 $\boldsymbol{\Sigma}_k$를 곱해서 역행렬 제거
-$$0 = \sum_{n=1}^{N}\gamma(z_{nk})(\mathbf{x}_n - \boldsymbol{\mu}_k)$$
-
-- 분배하고
-$$0 = \sum_{n=1}^{N}\gamma(z_{nk})\mathbf{x}_n - \sum_{n=1}^{N}\gamma(z_{nk})\boldsymbol{\mu}_k$$
-
-- 넘겨서 정리하고
-$$\sum_{n=1}^{N}\gamma(z_{nk})\mathbf{x}_n = \sum_{n=1}^{N}\gamma(z_{nk})\boldsymbol{\mu}_k$$
-
-]
-
-.pull-right[
-- $\boldsymbol{\mu}_k$는 $n$에 의존하지 않으므로, $\boldsymbol{\mu}_k$를 합 밖으로 빼내고
-$$\sum_{n=1}^{N}\gamma(z_{nk})\mathbf{x}_n = \boldsymbol{\mu}_k\!\left(\sum_{n=1}^{N}\gamma(z_{nk})\right)$$
-
-- 나눠주면
-$$\boldsymbol{\mu}_k = \frac{\displaystyle\sum_{n=1}^{N}\gamma(z_{nk})\mathbf{x}_n}{\displaystyle\sum_{n=1}^{N}\gamma(z_{nk})}$$
-
-- 뿅
-$$\qquad \boldsymbol{\mu}_k = \frac{1}{N_k}\sum_{n=1}^{N}\gamma(z_{nk})\mathbf{x}_n, \quad N_k = \sum_{n=1}^{N}\gamma(z_{nk})$$
-]
-
-
----
-# Method
-
-- 같은 방식으로 $\boldsymbol{\Sigma}_k$에 대해 미분하면:
-
-$$\boldsymbol{\Sigma}_k = \frac{1}{N_k}\sum_{n=1}^{N}\gamma(z_{nk})(\mathbf{x}_n - \boldsymbol{\mu}_k)(\mathbf{x}_n - \boldsymbol{\mu}_k)^\top$$
-
-- $\pi_k$는 $\sum_k \pi_k = 1$ 제약 하에 Lagrange multiplier로 최대화:
-
-$$\ln p(\mathbf{X}|\boldsymbol{\pi}, \boldsymbol{\mu}, \boldsymbol{\Sigma}) + \lambda\!\left(\sum_{k=1}^{K}\pi_k - 1\right), 
-\quad 0 = \sum_{n=1}^{N}\frac{\mathcal{N}(\mathbf{x}_n|\boldsymbol{\mu}_k,\boldsymbol{\Sigma}_k)}{\sum_j \pi_j \mathcal{N}(\mathbf{x}_n|\boldsymbol{\mu}_j,\boldsymbol{\Sigma}_j)} + \lambda
-, \quad \lambda = -N$$
-
-- 위의 식 정리하고, 양변에 $\pi_k$를 곱하면, $\pi_k$의 closed-form 해:
-
-$$\pi_k = \frac{N_k}{N}$$
-
-
----
-# Method
-
-### General EM Algorithm
-
-- 앞서 GMM에서 EM 알고리즘을 유도한 과정을 일반적인 모델로 확장하면, EM 알고리즘의 일반적인 형태를 얻을 수 있음
-- Latent variable $\mathbf{Z}$가 있는 모델에서, 관측된 데이터 $\mathbf{X}$의 log-likelihood를 최대화하는 문제
-  - 잠재변수 외에, 최적화하고자 하는 파라미터를 $\theta$로 두고, 아래와 같이 쓸 수 있다
-
-$$\ln p(x) = \ln \sum_{\mathbf{z}} p(x, \mathbf{z})$$
-
-$$\ln p(\mathbf{X}|\theta) = \ln \left\{ \sum_{\mathbf{Z}} p(\mathbf{X}, \mathbf{Z}|\theta) \right\}$$
-
-- 이 문제는, 앞과 똑같이, logarithm 내에 sum이 들어가있는 풀기 어려운 구조
-- 따라서, complete-data라고 **가정**해서 문제를 풀어보자
-    - complete-data likelihood는, 관측된 데이터 $\mathbf{X}$와 latent variable $\mathbf{Z}$가 모두 주어졌을 때의 likelihood
-    - Complete data set
-    $$\left\{ \mathbf{X}, \mathbf{Z} \right\}$$
-
-
----
-# Method
-- Complete-data 의 likelihood는, 파라미터가 주어졌을 때
-$$  \ln p(\mathbf{X}, \mathbf{Z}|\theta) $$
-
-- 다만, 현실은 incomplete-data이므로 보통 $\mathbf{X}$만 주어지는데, 따라서 우리가 아는 정보는
-$$ p(\mathbf{Z}|\mathbf{X}, \theta) $$
-
-- 완전한 정보를 알 수 없기때문에, 우리가 아는 정보로 complete-data likelihood의 기대값을 구해보자 $\rightarrow$ E step!
-- E step에서는 $\mathbf{X}$를 알고있고, 현재 알고있는, 고정된 파라미터를 $\theta _{old}$라고 함
-$$ p(\mathbf{Z}|\mathbf{X}, \theta_{old}) $$
-
-- 이를 이용해서 complete-data log-likelihood의 기대값 $\mathcal{Q}(\boldsymbol{\theta}, \boldsymbol{\theta}^{\text{old}})$를 정의하고(E step), 
-M step에서는 이 $\mathcal{Q}$를 최대화하는 $\boldsymbol{\theta}$를 찾음:
-
-$$\mathcal{Q}(\boldsymbol{\theta}, \boldsymbol{\theta}^{\text{old}}) = \sum_{\mathbf{Z}} p(\mathbf{Z}|\mathbf{X}, \boldsymbol{\theta}^{\text{old}}) \ln p(\mathbf{X}, \mathbf{Z}|\boldsymbol{\theta})
-, \quad \boldsymbol{\theta}^{\text{new}} = \underset{\boldsymbol{\theta}}{\arg\max}\; \mathcal{Q}(\boldsymbol{\theta}, \boldsymbol{\theta}^{\text{old}})$$
-
----
-# Method
-- GMM으로 다시 위 수식을 써보면, 
-
----
-# Method
-
----
-# Method
-
-
-
 <img src="fig/PRML_em.png" style="position: absolute; top: 100px; left: 200px; width: 70%;"/>
 
 ---
@@ -438,25 +278,6 @@ $$\mathcal{Q}(\boldsymbol{\theta}, \boldsymbol{\theta}^{\text{old}}) = \sum_{\ma
 | Parameters $\boldsymbol{\theta} = (\boldsymbol{\pi}, \boldsymbol{\mu}, \boldsymbol{\Sigma})$ | Camera pose & depth $(P, D)$ |
 | E-step: responsibility $\gamma(z_{nk})$ 계산 | E-step: $\mathcal{G}^*$ MAP 추정 (scene 업데이트) |
 | M-step: $\boldsymbol{\mu}_k, \boldsymbol{\Sigma}_k, \pi_k$ 업데이트 | M-step: $(P, D)$ 업데이트 (BA + Depth Reg.) |
-
-
----
-# Method
-
-### Complete-data Likelihood 
-
-- 논문에서는 $p(I, \mathcal{G}|P, D)$ 대신 **algebraic convenience**를 위해 $p(I, D, \mathcal{G}|P)$를 사용
-
-$$p(I, D, \mathcal{G}|P) = p(I, \mathcal{G}|D, P) \cdot p(D|P)$$
-
-- 치환해서 쓰면:
-$$A=(I,\mathcal{G}),\; B=D,\; C=P, \quad p(A, B|C) = p(A|B,C)\,p(B|C)$$
-
-$$p(I, \mathcal{G}, D\,|\,P) = p(I, \mathcal{G}\,|\,D, P)\cdot p(D\,|\,P)$$
-
-- log를 취하면:
-
-$$\ln p(I, \mathcal{G}, D\,|\,P) = \ln p(I, \mathcal{G}\,|\,D, P) + \underbrace{\ln p(D\,|\,P)}_{\text{uniform prior} \;\Rightarrow\; \text{const}} = \log p(I, \mathcal{G}\,|\,D, P) + C$$
 
 
 ---
@@ -527,32 +348,11 @@ $$= \underset{P,D}{\arg\min}\; \underbrace{-\log p(I|\mathcal{G}^*,D,P)}_{\text{
 ]
 
 ---
-
 # Method
 
-### Joint Optimization: 수렴성 연결
-
-- PRML의 EM 수렴성 증명에서 보았듯이:
-
-$$\ln p(I|\boldsymbol{\theta}^{\text{new}}) \geq \ln p(I|\boldsymbol{\theta}^{\text{old}})$$
-
-- GSO-SLAM에서 $\boldsymbol{\theta} = (P, D)$이고, $\delta$-function 근사를 사용하므로:
-  - E-step에서 $\mathcal{G}^*$를 MAP로 찾으면, $\mathcal{L}(q, \boldsymbol{\theta})$를 최대화 (lower bound tight)
-  - M-step에서 $(P, D)$를 최적화하면, lower bound를 올림
-  - 함께 log-likelihood를 **단조 증가**시킴
-
-- **실제 구현에서의 핵심**:
-  - E-step (2DGS optimization)은 별도 thread에서 병렬 실행
-  - M-step (DSO의 BA)은 main thread에서 실행
-  - 추가 연산 비용 없이 bidirectional coupling 달성
-
----
-
-# Method
-
-### Gaussian Splat Initialization: 개요
-
-- DSO는 최적화 과정에서 **image gradient를 이미 계산** → 이를 재활용
+.pull-left[
+### Gaussian Splat Initialization:
+- DSO는 최적화 과정에서 **image gradient를 이미 계산**
 - Image gradient를 projected Gaussian Splat distribution의 확률적 추정으로 사용
 - 추가 연산 없이 초기 Gaussian 파라미터 결정
 
@@ -561,8 +361,10 @@ $$\ln p(I|\boldsymbol{\theta}^{\text{new}}) \geq \ln p(I|\boldsymbol{\theta}^{\t
   2. Multiple keyframe의 2D covariance를 결합하여 **3D covariance** 계산
   3. Eigen-decomposition으로 rotation과 scaling 파라미터 추출
 
-.center[
+]
+.pull-right[
 <img src="fig/fig_3.png" width="75%"/>
+
 ]
 
 ---
@@ -671,88 +473,23 @@ $$\tilde{\Sigma}_{3D} = \begin{cases} \Sigma_{3D} + \epsilon \mathbf{I} & \text{
 ---
 
 # Experiments
+.pull-left[
+  <img src="fig/tab_2.png" width="80%"/>
+]
 
-### Implementation Details
-
-- **구현**: C++, 2DGS는 LibTorch 기반
-- **Loss hyperparameters** (Eq. 7): $\lambda = 0.2$, $\lambda_d = 500$, $\lambda_n = 0.1$
-- **Hardware**: Ryzen 5900X CPU, 64GB RAM, NVIDIA RTX 4090 GPU
-
-### Datasets & Metrics
-- **Replica** (synthetic): 8개 scene
-- **TUM-RGBD** (real-world, Kinect v1): 3개 sequence
-- **INS Dataset**: Large-scale indoor corridor
-- **Self-captured**: Quadrupedal robot
-- **Metrics**: ATE RMSE (tracking), PSNR/SSIM/LPIPS (photometric), L1 depth (geometric)
+.pull-right[
+  <img src="fig/tab_2.png" width="80%"/>
+]
 
 ---
 
 # Experiments
 
-### Tracking Accuracy — Replica
-
-.center[
-<img src="fig/table1.png" width="85%"/>
-]
-
-- RGB 기반 방법 중 대부분의 scene에서 **최고 성능**
-- Photo-SLAM 대비 최대 **50% 낮은 tracking error**
-- RGB-D 기반 방법과도 **비슷한 수준**의 정확도
+<img src="fig/tab_3_fig_4.png" style="position: absolute; top: 120px; left: 100px; width: 35%;"/>
+<img src="fig/tab_4_fig_5.png" style="position: absolute; top: 120px; left: 600px; width: 40%;"/>
 
 ---
 
-# Experiments
-
-### Tracking Accuracy — TUM-RGBD
-
-.center[
-<img src="fig/table2.png" width="80%"/>
-]
-
-- TUM-RGBD는 Kinect v1의 심한 noise가 있어 direct method에게는 불리
-- Feature-based 방법(Orbeez, Photo-SLAM)보다 다소 낮은 tracking accuracy
-- 그러나 **MGSO* 대비 높은 tracking accuracy** → Joint optimization이 tracking robustness를 강화
-
----
-
-# Experiments
-
-### Reconstruction Quality & System Speed — Replica
-
-.center[
-<img src="fig/table3.png" width="85%"/>
-]
-
-- **PSNR 34.48 dB**, **LPIPS 0.060**, **Depth L1 8.12 cm** — 대부분의 metric에서 최고 성능
-- MonoGS 대비 **36배 빠름**, SplaTAM 대비 **141배 빠름** (30 FPS)
-- Gaussian Initialization이 최적화를 가속화한 결과
-
----
-
-# Experiments
-
-### Qualitative Results — Replica
-
-.center[
-<img src="fig/fig_4.png" width="75%"/>
-]
-
-- 다른 방법들에 비해 **우수한 geometric accuracy와 photometric fidelity**
-
----
-
-# Experiments
-
-### Reconstruction Quality — TUM-RGBD
-
-.center[
-<img src="fig/table4.png" width="80%"/>
-]
-
-- TUM의 심한 noise에도 불구하고, feature-based 방법 (Orbeez-SLAM, Photo-SLAM)보다 풍부한 geometry 추출
-- MonoGS가 fr1, fr3에서 약간 더 높은 quality를 달성하지만, 속도가 **9.6배 느림**
-
----
 
 # Experiments
 
@@ -771,7 +508,7 @@ $$\tilde{\Sigma}_{3D} = \begin{cases} \Sigma_{3D} + \epsilon \mathbf{I} & \text{
 **Large-scale INS Dataset**:
 
 .center[
-<img src="fig/table5.png" width="100%"/>
+<img src="fig/tab_5.png" width="100%"/>
 ]
 
 - Pure VO로 MonoGS보다 높은 정확도
@@ -787,7 +524,7 @@ $$\tilde{\Sigma}_{3D} = \begin{cases} \Sigma_{3D} + \epsilon \mathbf{I} & \text{
 ### Runtime Analysis
 
 .center[
-<img src="fig/table6.png" width="70%"/>
+<img src="fig/tab_6.png" width="70%"/>
 ]
 
 - Tracking: 항상 low latency (local keyframe 기반)
@@ -802,7 +539,7 @@ $$\tilde{\Sigma}_{3D} = \begin{cases} \Sigma_{3D} + \epsilon \mathbf{I} & \text{
 ### Ablation Study: Gaussian Splat Initialization
 
 .center[
-<img src="fig/table7.png" width="70%"/>
+<img src="fig/tab_7.png" width="70%"/>
 ]
 
 - **KNN 기반**: 기존 GS/Photo-SLAM 방식, PSNR 25.51, 추가 2700 iter (64.4s) 필요
@@ -817,7 +554,7 @@ $$\tilde{\Sigma}_{3D} = \begin{cases} \Sigma_{3D} + \epsilon \mathbf{I} & \text{
 ### Ablation Study: Joint Optimization
 
 .center[
-<img src="fig/table8.png" width="60%"/>
+<img src="fig/tab_8.png" width="60%"/>
 ]
 
 - Joint Optimization 없이 (naive coupling): PSNR 34.10, ATE 0.688, Depth L1 9.744
@@ -849,30 +586,10 @@ $$\tilde{\Sigma}_{3D} = \begin{cases} \Sigma_{3D} + \epsilon \mathbf{I} & \text{
 2. **EM Framework**: Joint optimization을 EM으로 정식화
    - E-step: $\mathcal{G}$를 MAP로 추정 (RGB + Depth + Normal loss)
    - M-step: $(P, D)$를 BA + Depth Regularization으로 최적화
-   - PRML의 수렴성 보장 → log-likelihood 단조 증가
 
 3. **Gaussian Splat Initialization**: DSO의 image gradient 재활용
-   - 2D covariance → 3D covariance 추정 → Eigen-decomposition
-   - Heuristic 초기화 대비 수렴 가속화 및 reconstruction quality 향상
+   - 2D covariance → 3D covariance 추정 → clipping으로 보정
+   - 기존방식 초기화 대비 수렴 가속화 및 reconstruction quality 향상
 
 4. **성능**: Real-time (30 FPS)으로 SOTA 수준의 photometric/geometric fidelity 및 tracking accuracy 달성
-
----
-
-# Conclusion
-
-### 한계 및 향후 연구
-
-- Direct method 특성상 **severe motion blur**에 취약
-  - Photometric consistency 가정 위반 시 tracking drift 발생
-
-- **Textureless region**에서 initialization이 sparse해짐
-  - Image gradient 기반이므로 uniform surface에서 샘플링 어려움
-
-- 현재 semi-dense map을 **discrete point 집합으로 모델링**
-  - 향후 image structure를 고려한 더 정밀한 모델링으로 coupled approach의 이점 극대화 예정
-
-### 느낀 점
-- EM으로 tracking과 mapping을 jointly optimize하는 접근이 깔끔
-- DSO의 기존 연산(image gradient)을 재활용하여 추가 비용 없이 초기화하는 아이디어가 인상적
-- Loop closure 없이도 large-scale에서 낮은 drift를 보여 VO의 견고함을 입증
+ 

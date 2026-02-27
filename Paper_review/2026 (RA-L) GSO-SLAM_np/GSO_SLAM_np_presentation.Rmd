@@ -474,7 +474,7 @@ $$\tilde{\Sigma}_{3D} = \begin{cases} \Sigma_{3D} + \epsilon \mathbf{I} & \text{
 
 # Experiments
 .pull-left[
-  <img src="fig/tab_2.png" width="80%"/>
+  <img src="fig/tab_1.png" width="80%"/>
 ]
 
 .pull-right[

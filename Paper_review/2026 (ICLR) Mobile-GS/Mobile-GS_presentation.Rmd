@@ -4,8 +4,11 @@
 title: "Mobile-GS: Real-Time Gaussian Splatting For Mobile Devices"
 subtitle: "2026 ICLR"
 author: |
-  <span class="author-line">Xiaobiao Du<sup>1,3</sup>, Yida Wang<sup>3</sup>, KunZhan<sup>3</sup>, XinYu<sup>2∗</sup>
-  <span class="affiliation"><sup>1</sup>University of Technology Sydney, <sup>2</sup>Adelaide University, <sup>3</sup>Li Auto Inc</span>
+  "Xiaobiao Du$^{1,3}$, Yida Wang$^3$, KunZhan$^3$, XinYu$^{2*}$"
+  $^1$University of Technology Sydney, $^2$Adelaide University, $^3$Li Auto Inc
+# author: |
+#   <span class="author-line">Xiaobiao Du<sup>1,3</sup>, Yida Wang<sup>3</sup>, KunZhan<sup>3</sup>, XinYu<sup>2∗</sup>
+#   <span class="affiliation"><sup>1</sup>University of Technology Sydney, <sup>2</sup>Adelaide University, <sup>3</sup>Li Auto Inc</span>
 date: 2026.03.19
 
 output:
@@ -14,8 +17,8 @@ output:
     css:
       - default
       - default-fonts
-      - ../../swan/swan.css
-      - ../../swan/tachyons_ext.css
+      - swan/swan.css
+      - swan/tachyons_ext.css
       - logo-bottom-right.css
     includes:
       after_body: logo-bottom-right.html
@@ -24,6 +27,10 @@ output:
       highlightLines: true
       countIncrementalSlides: false
       ratio: '16:9'
+  pdf_document:
+    latex_engine: xelatex
+
+    
 ---
 
 ```{r setup, include=FALSE}
@@ -68,11 +75,8 @@ count: false -->
   - Order-free rendering : Sorting 제거 (Depth-aware order-independent rendering)
   - Quantization : 메모리 절약을 (Neural vector quantization + SH distillation)
   - Fewer Gaussian points : 퀄리티 유지하면서 Gaussian point 수 줄이기 (Contribution-based pruning)
-.left-10[
-.top-56[
-<img src="fig/fig_2.png" width="88%"/>
-]
-]
+
+<img src="fig/fig_2.png" width="100%"/>
 
 ---
 # Related Work

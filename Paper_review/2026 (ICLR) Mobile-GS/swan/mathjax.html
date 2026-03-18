@@ -1,0 +1,63 @@
+<!-- (1) MathJax를 Local Computer에 설치하고 인터넷 연결 없이 사용하기
+참고자료: 
+https://docs.mathjax.org/en/latest/web/hosting.html
+https://community.rstudio.com/t/what-is-the-canonical-way-of-adding-javascript-to-a-xaringan-presentation/40348/2
+
+1. node.js (npm) 설치
+https://nodejs.org/en
+
+2. mathjax 설치
+$ npm install mathjax
+
+3. mathjax가 어디에 설치됐는지 찾기
+$ npm list mathjax
+
+4. 필요한 곳에 mathjax 폴더 복사
+C:\Users\user  -> ???
+
+5. local mathjax와 연결
+<script src="path-to-MathJax/tex-chtml.js" id="MathJax-script" async></script>
+
+6. xaringan에서 불러오기
+output:  
+  xaringan::moon_reader:
+    includes:
+      after_body:
+        - 'mathjax_linked.html'
+-->
+<!-- (1) MathJax를 Local Computer에 설치하고 인터넷 연결 없이 사용하기: 아래 주석을 활성화, MathJax Local: \textcolor{red}{x}
+     (2) MathJax를 Online Server에서 사용하기: 아래를 주석처리,                    MathJax Server: \color{red}{x}
+<script src="swan/mathjax-3.2.2/es5/tex-chtml.js" id="MathJax-script" async></script>
+-->
+
+<!--
+Local Server 실행하기 (의미없다)
+$ cmd
+$ cd [디렉터리주소]
+
+% Python 3
+$ python -m http.server 4321
+
+% Python 2
+$ python -m SimpleHTTPServer 4321
+
+브라우저 주소창에 
+localhost:4321
+-->
+
+<!-- This is from Sydney Xaringan 
+https://github.com/garthtarr/sydney_xaringan/blob/master/assets/mathjax-equation-numbers.html
+-->
+
+<script type="text/x-mathjax-config">
+  MathJax.Hub.Config({
+    TeX: { equationNumbers: { autoNumber: "AMS" } },
+  });
+</script>
+<style>
+.mjx-mrow a {
+  color: black;
+  pointer-events: none;
+  cursor: default;
+}
+</style>

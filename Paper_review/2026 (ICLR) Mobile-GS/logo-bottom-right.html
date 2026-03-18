@@ -1,0 +1,24 @@
+<script>
+(function () {
+  function appendBottomLogoText() {
+    document
+      .querySelectorAll(
+        '.remark-slide-content:not(.title-slide):not(.inverse):not(.hide-logo)'
+      )
+      .forEach(function (el) {
+        if (el.querySelector('.logo')) {
+          return;
+        }
+
+        el.insertAdjacentHTML(
+          'beforeend',
+          '<div class="logo">CVIPL Seminar</div>'
+        );
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', appendBottomLogoText);
+  window.addEventListener('load', appendBottomLogoText);
+  setTimeout(appendBottomLogoText, 300);
+})();
+</script>

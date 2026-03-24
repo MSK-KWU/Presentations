@@ -1,0 +1,96 @@
+name: Create MSK-Presentations Repository
+# NOTE: This workflow requires a Personal Access Token (PAT) with 'repo' scope
+# stored as a repository secret named GH_PAT.
+# Steps to create a PAT:
+#   1. GitHub Settings → Developer settings → Personal access tokens → Generate new token
+#   2. Grant 'repo' scope (or 'public_repo' for public repos only)
+#   3. Save the token as a repository secret named GH_PAT:
+#      Presentations repo → Settings → Secrets and variables → Actions → New repository secret
+
+on:
+  workflow_dispatch:
+
+jobs:
+  create-repo:
+    runs-on: ubuntu-latest
+    permissions: {}
+    steps:
+      - name: Create MSK-Presentations repository
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "Error: GH_PAT secret is not set. Please add a PAT with 'repo' scope."
+            exit 1
+          fi
+
+          HTTP_STATUS=$(curl -s -o response.json -w "%{http_code}" \
+            -X POST \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            https://api.github.com/user/repos \
+            -d '{
+              "name": "MSK-Presentations",
+              "description": "Public presentation slides hosted via GitHub Pages",
+              "private": false,
+              "auto_init": false
+            }')
+
+          echo "HTTP Status: $HTTP_STATUS"
+          cat response.json
+
+          if [ "$HTTP_STATUS" = "201" ]; then
+            echo "Repository created successfully."
+          elif [ "$HTTP_STATUS" = "422" ]; then
+            echo "Repository already exists, continuing..."
+          else
+            echo "Failed to create repository (status $HTTP_STATUS)"
+            exit 1
+          fi
+
+      - name: Add README.md to MSK-Presentations
+        env:
+          GH_TOKEN: ${{ secrets.GH_PAT }}
+        run: |
+          # README.md content for MSK-Presentations (base64-encoded).
+          # Decoded content:
+          #   # 📊 MSK Presentations
+          #   xaringan으로 제작된 발표 슬라이드 모음입니다. (2025.01.13~)
+          #   Links use https://msk-kwu.github.io/MSK-Presentations/...
+          # To update: edit the content and re-encode with: base64 -w 0 README.md
+          ENCODED="IyDwn5OKIE1TSyBQcmVzZW50YXRpb25zCgp4YXJpbmdhbuycvOuhnCDsoJzsnpHrkJwg67Cc7ZGcIOyKrOudvOydtOuTnCDrqqjsnYzsnoXri4jri6QuICgyMDI1LjAxLjEzfikKCj4gKirsiqzrnbzsnbTrk5wg67O06riwKio6IOyVhOuemCDrp4Htgazrpbwg7YG066at7ZWY66m0IOu4jOudvOyasOyggOyXkOyEnCDrsJTroZwg7Je066a964uI64ukLgoKLS0tCgojIyDwn5OEIFBhcGVyIFJldmlldwoKfCDrsJztkZwg7J6Q66OMIHwg66eB7YGsIHwKfC0tLXwtLS18CnwgR1NPLVNMQU0gKFJBLUwgMjAyNikgfCBb7Iqs65287J2065OcIOuztOq4sF0oaHR0cHM6Ly9tc2sta3d1LmdpdGh1Yi5pby9NU0stUHJlc2VudGF0aW9ucy9QYXBlcl9yZXZpZXcvMjAyNiUyMCUyOFJBLUwlMjklMjBHU08tU0xBTS9HU09fU0xBTV9wcmVzZW50YXRpb24uaHRtbCkgfAp8IEdTTy1TTEFNIE5QIChSQS1MIDIwMjYpIHwgW+yKrOudvOydtOuTnCDrs7TquLBdKGh0dHBzOi8vbXNrLWt3dS5naXRodWIuaW8vTVNLLVByZXNlbnRhdGlvbnMvUGFwZXJfcmV2aWV3LzIwMjYlMjAlMjhSQS1MJTI5JTIwR1NPLVNMQU1fbnAvR1NPX1NMQU1fbnBfcHJlc2VudGF0aW9uLmh0bWwpIHwKfCBTdXJmU3BsYXQgKElDTFIgMjAyNikgfCBb7Iqs65287J2065OcIOuztOq4sF0oaHR0cHM6Ly9tc2sta3d1LmdpdGh1Yi5pby9NU0stUHJlc2VudGF0aW9ucy9QYXBlcl9yZXZpZXcvMjAyNiUyMCUyOElDTFIlMjklMjBTdXJmU3BsYXQvU3VyZlNwbGF0X3ByZXNlbnRhdGlvbi5odG1sKSB8CnwgUkdTLVNMQU0gKGFyWGl2IDIwMjYpIHwgW+yKrOudvOydtOuTnCDrs7TquLBdKGh0dHBzOi8vbXNrLWt3dS5naXRodWIuaW8vTVNLLVByZXNlbnRhdGlvbnMvUGFwZXJfcmV2aWV3LzIwMjYlMjAlMjhhclhpdiUyOSUyMFJHUy1TTEFNL1JHU19TTEFNX3ByZXNlbnRhdGlvbi5odG1sKSB8CnwgRUdHUyAoYXJYaXYgMjAyNSkgfCBb7Iqs65287J2065OcIOuztOq4sF0oaHR0cHM6Ly9tc2sta3d1LmdpdGh1Yi5pby9NU0stUHJlc2VudGF0aW9ucy9QYXBlcl9yZXZpZXcvMjAyNSUyMCUyOGFyWGl2JTI5JTIwRUdHUy9FR0dTX3ByZXNlbnRhdGlvbi5odG1sKSB8CnwgR0VTIChDVlBSIDIwMjQpIHwgW+yKrOudvOydtOuTnCDrs7TquLBdKGh0dHBzOi8vbXNrLWt3dS5naXRodWIuaW8vTVNLLVByZXNlbnRhdGlvbnMvUGFwZXJfcmV2aWV3LzIwMjQlMjhDVlBSJTI5JTIwR0VTL0dFU19wcmVzZW50YXRpb24uaHRtbCkgfAp8IEdhdXNzaWFuIE1DTUMgKE5ldXJJUFMgMjAyNCkgfCBb7Iqs65287J2065OcIOuztOq4sF0oaHR0cHM6Ly9tc2sta3d1LmdpdGh1Yi5pby9NU0stUHJlc2VudGF0aW9ucy9QYXBlcl9yZXZpZXcvMjAyNCUyOE5ldXJJUFMlMjklMjBHYXVzc2lhbiUyME1DTUMvTUNNQ19wcmVzZW50YXRpb24uaHRtbCkgfAoKIyMg8J+TkCBMaW5lYXIgQWxnZWJyYQoKfCDrsJztkZwg7J6Q66OMIHwg66eB7YGsIHwKfC0tLXwtLS18CnwgU2NhbGFycywgVmVjdG9ycywgYW5kIE1hdHJpY2VzIHwgW+yKrOudvOydtOuTnCDrs7TquLBdKGh0dHBzOi8vbXNrLWt3dS5naXRodWIuaW8vTVNLLVByZXNlbnRhdGlvbnMvTGluZWFyX0FsZ2VicmEvU2NhbGFycyUyQyUyMFZlY3RvcnMlMkMlMjBhbmQlMjBNYXRyaWNlcy5odG1sKSB8CgojIyDwn5SsIE15IFJlc2VhcmNoCgp8IOuwnO2RnCDsnpDro4wgfCDrp4HtgawgfAp8LS0tfC0tLXwKfCBQeVRvcmNoIFR1dG9yaWFsIHwgW+yKrOudvOydtOuTnCDrs7TquLBdKGh0dHBzOi8vbXNrLWt3dS5naXRodWIuaW8vTVNLLVByZXNlbnRhdGlvbnMvTXklMjByZXNlYXJjaC9QeXRvcmNoX3R1dG9yaWFsLmh0bWwpIHwK"
+
+          # Check if README.md already exists (to get SHA for update)
+          EXISTING=$(curl -s \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/MSK-KWU/MSK-Presentations/contents/README.md)
+
+          SHA=$(echo "$EXISTING" | jq -r '.sha // empty' 2>/dev/null || true)
+
+          if [ -n "$SHA" ]; then
+            PAYLOAD="{\"message\":\"Update README.md\",\"content\":\"$ENCODED\",\"sha\":\"$SHA\"}"
+          else
+            PAYLOAD="{\"message\":\"Add README.md\",\"content\":\"$ENCODED\"}"
+          fi
+
+          HTTP_STATUS=$(curl -s -o file_response.json -w "%{http_code}" \
+            -X PUT \
+            -H "Authorization: token $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            -H "Content-Type: application/json" \
+            https://api.github.com/repos/MSK-KWU/MSK-Presentations/contents/README.md \
+            -d "$PAYLOAD")
+
+          echo "HTTP Status: $HTTP_STATUS"
+          cat file_response.json
+
+          if [ "$HTTP_STATUS" = "201" ]; then
+            echo "README.md created successfully."
+          elif [ "$HTTP_STATUS" = "200" ]; then
+            echo "README.md updated successfully."
+          else
+            echo "Failed to create/update README.md (status $HTTP_STATUS)"
+            exit 1
+          fi

@@ -1,0 +1,349 @@
+---
+# xaringan::inf_mr('Paper_review/2022 (RA-L) R3LIVE/r3live.Rmd')
+# pagedown::chrome_print('Paper_review/2022 (RA-L) R3LIVE/r3live.html')
+title: "R3LIVE: A Robust, Real-time, RGB-colored, LiDAR-Inertial-Visual tightly-coupled state Estimation and mapping package"
+subtitle: "2022 (RA-L)"
+author: |
+  Jiarong Lin and Fu Zhang
+ 
+# author: |
+#   <span class="author-line">Xiaobiao Du<sup>1,3</sup>, Yida Wang<sup>3</sup>, KunZhan<sup>3</sup>, XinYu<sup>2∗</sup>
+#   <span class="affiliation"><sup>1</sup>University of Technology Sydney, <sup>2</sup>Adelaide University, <sup>3</sup>Li Auto Inc</span>
+date: 2026.04.16
+
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css:
+      - default
+      - default-fonts
+      - swan/swan.css
+      - swan/tachyons_ext.css
+      - logo-bottom-right.css
+    includes:
+      after_body: logo-bottom-right.html
+    nature:
+      highlightStyle: github  
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: '16:9'
+  pdf_document:
+    latex_engine: xelatex
+
+    
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+<!-- class: title-slide
+count: false -->
+# Contents
+
+.contents-list[
+1. Introduction
+2. Background
+3. Method
+4. Experiments
+5. Conclusion
+]
+
+---
+# Introduction
+
+- 과거로 돌아가보자...
+- Gaussian Splatting으로 SLAM을 하기 이전에도, **Colorized point cloud**를 이용해 눈으로 보기에 충분히 사실적인 SLAM이 가능했음
+- 저가형 solid-state LiDAR가 등장하면서, 기존 ring-channel LiDAR보다 훨씬 저렴하면서, dense함
+- 다만, LiDAR만 사용하는 방법론들 자체가 feature라는걸 정의하기가 어려움.
+  - 더욱이, **제한된 FoV**를 가진 solid-state LiDAR의 경우, feature가 부족한 상황이 자주 발생함
+- 그래서 LiDAR와 Camera를 합친 방법이 두두등장!
+  - 역설적이게도, 두 센서(solid-state LiDAR, Camera) 모두 제한된 FoV를 가지는 경우가 많음
+
+---
+# Introduction
+
+- 본 논문은, tightly coupled 방식!
+- 크게 2가지의 contribution으로 나눌 수 있음
+  - RGB-colored point cloud를 이용한 SLAM 방법론 제안
+  - LIO, VIO를 subsystem으로 하여 tightly-coupled 방식으로 융합하는 방법
+
+
+.center[
+<img src="fig/fig_2_overview.png" width="80%">
+]
+
+---
+# Background
+- Loosly-coupled vs. tightly-coupled 
+- Point-to-plane residual
+- Kalman Filter 
+
+---
+# Background
+
+### Loosly-coupled vs. tightly-coupled
+- Sensor fusion : loosly-coupled 방식과 tightly-coupled 방식으로 나뉨
+- Loosly-coupled : 각 센서의 pose estimation을 독립적으로 수행한 후, 이를 융합
+- Tightly-coupled : 각 센서의 raw measurement를 이용하여, 한번에 구함
+- R3LIVE는 tightly-couple이지만, LIO, VIO가 각각 tightly couple(full-tightly는 아님!)
+.center[
+<img src="fig/loosly_tightly.png" width="60%">
+]
+
+---
+# Background
+### Point-to-plane residual (Fast-LIO2)
+- Point-to-plane residual : LiDAR의 point cloud에서, scan 된point가 기존의 map point로 구성한 plane으로부터 얼마나 떨어져 있는지
+
+.center[
+<img src="fig/point2plane.png" width="100%">
+]
+
+---
+# Background
+### Kalman Filter - motion/observation model
+
+.pull-left[
+- Kalman Filter는 motion model, observation model로 나눌 수 있음
+- 기본적으로, Gaussian Distribution을 따른다고 가정
+- Motion/Process/Prediction
+
+$$\color{blue}{\mathbf{x}_t} = f(\color{blue}{\mathbf{x}_{t-1}}, \mathbf{u}_t) + \mathbf{w}_t$$
+
+- Observation/Measurement/Correction
+
+$$\color{red}{\mathbf{z}_{t,i}} = h(\color{blue}{\mathbf{x}_t}, \mathbf{y}_i) + \mathbf{v}_{t,i}$$
+]
+
+.pull-right[
+<img src="fig/kalmanfilter.png" width="100%">
+]
+
+---
+# Background
+### Kalman Filter - markov property 
+.pull-left[
+- 직전의 state에 대해서만 영향을 받음
+- Motion model은 prediction, observation model은 correction step에 해당
+- 즉, Kalman Filter는 prediction과 correction으로 이루어짐
+]
+
+.pull-right[
+<img src="fig/kf_algorithm.png" width="100%">
+<img src="fig/kalman_update.png" width="100%">
+]
+
+---
+# Background
+### ESIKF;Error State Kalman Filter
+- Kalman Filter와 달리, ESIKF는 state를 nominal state와 local error state로 분리하여, error state를 iterative하게 추정하는 방식
+  - 즉, State를 업데이트 할 때, prediction와 observation의 차이를 error로 두고, 이를 최소화 하는걸 iterative 하게!
+.center[
+<img src="fig/esikf.png" width="45%">
+]
+
+---
+# Method
+### Overview
+- R3LIVE는 LIO + VIO로 이루어져 있음
+- Full state vector $\mathbf{x} \in \mathbb{R}^{29}$:
+.nt-01[
+$$\mathbf{x} = \left[{}^G\mathbf{R}_I^T,\, {}^G\mathbf{p}_I^T,\, {}^G\mathbf{v}^T,\, \mathbf{b}_\mathbf{g}^T,\, \mathbf{b}_\mathbf{a}^T,\, {}^G\mathbf{g}^T,\, {}^I\mathbf{R}_C^T,\, {}^I\mathbf{p}_C^T,\, {}^It_C,\, \phi^T\right]^T$$
+]
+
+- R3LIVE는 10cm크기의 voxel에 해당 index 내의 point들을 저장
+   - 과거의 point(map point)와 현재 scan 된 point를 각각 deactivated, activated로 구분
+   - 각 point는 3D position과 RGB color로 표현(여기서, 각각(position, color)의 공분산도 들고있음!)
+.nt-03[
+$$\mathbf{P} = \left[{}^G\mathbf{p}_x,\, {}^G\mathbf{p}_y,\, {}^G\mathbf{p}_z,\, \mathbf{c}_r,\, \mathbf{c}_g,\, \mathbf{c}_b\right]^T = \left[{}^G\mathbf{p}^T,\, \mathbf{c}^T\right]^T$$
+]
+
+---
+# Method
+### LIO subsystem
+
+- LIO subsystem은 Fast-LIO2를 기반으로 함
+   - 그냥 Fast-LIO2임
+- point cloud를 사용해 Geometry sturcture를 구성함(LIO-based SLAM)
+
+.center[
+<img src="fig/fig_2_overview.png" width="70%">
+]
+
+---
+# Method
+### VIO subsystem
+
+- 앞서 LIO를 이용하여 Geometry sturcture를 구성했음
+    - 여기서, pose도 어느정도 정확하고, map point도 어느정도 정확함
+    - sfm을 이용해 camra pose와 point를 얻었다고 생각하자!
+- VIO에서는, 이 둘을 이용하여 point가 어떤 색을 가지는지, 이미지에서는 어떻게 보이는지 등을 이용해 residual을 구함
+    - 즉, RGB color를 이용하여, residual을 구함
+    - Gaussian Splatting, NeRF와 비슷해보이지만 다름,
+    - 어떻게 하나 봅시다
+    
+
+---
+# Method
+### VIO subsystem - Frame-to-Frame residual
+
+.pull-left[
+- Map에 있는 3D points : $\mathcal{P} = \{\mathbf{P}_1, \ldots, \mathbf{P}_m\}$
+- 이전 이미지인 $I_{t-1}$번째 frame에 projection한 points : $\{\boldsymbol{\rho}_{1_{t-1}}, \ldots, \boldsymbol{\rho}_{m_{t-1}}\}$
+- 현재 이미지 $I_t$번째 frame에 projection한 points : $\{\boldsymbol{\rho}_{1_t}, \ldots, \boldsymbol{\rho}_{m_t}\}$
+- 이들의 위치는 Lucas-Kanade optical flow로 구함
+
+]
+
+.pull-right[ 
+  <img src="fig/fig_3.png" width="100%">
+]
+
+---
+# Method
+### VIO subsystem - Frame-to-Frame residual
+- Reprojection error : 
+
+$$\mathbf{r}\left(\check{\mathbf{x}}_k,\, \boldsymbol{\rho}_{s_k},\, {}^G\mathbf{p}_s\right) = \boldsymbol{\rho}_{s_k} - \boldsymbol{\pi}\!\left({}^C\mathbf{p}_s,\, \check{\mathbf{x}}_k\right)$$
+.f-90[
+$${}^C\mathbf{p}_s = \left[{}^C\mathbf{p}_{x_s},\, {}^C\mathbf{p}_{y_s},\, {}^C\mathbf{p}_{z_s}\right]^T =
+\left({}^G\check{\mathbf{R}}_{I_k} \cdot {}^I\check{\mathbf{R}}_{C_k}\right)^T \cdot {}^G\mathbf{p}_s - {}^I\check{\mathbf{R}}_{C_k}^T \cdot {}^I\check{\mathbf{p}}_{C_k} - \left({}^G\check{\mathbf{R}}_{I_k} \cdot {}^I\check{\mathbf{R}}_{C_k}\right)^T \cdot {}^G\check{\mathbf{p}}_{I_k}$$
+]
+
+.pull-left[
+
+$$\boldsymbol{\pi}\!\left({}^C\mathbf{p}_s,\, \check{\mathbf{x}}_k\right) = \left[\check{f}_{x_k}\frac{{}^C\mathbf{p}_{x_s}}{{}^C\mathbf{p}_{z_s}} + \check{c}_{x_k},\; \check{f}_{y_k}\frac{{}^C\mathbf{p}_{y_s}}{{}^C\mathbf{p}_{z_s}} + \check{c}_{y_k}\right]^T \\ + \frac{{}^I\check{t}_{C_k}}{\Delta t_{k-1,k}}\left(\boldsymbol{\rho}_{s_k} - \boldsymbol{\rho}_{s_{k-1}}\right)$$
+
+]
+.pull-right[ 
+  <img src="fig/transformation_explanation.png" width="50%" style="margin-left: auto; display: block;">
+]
+
+
+
+---
+# Method
+### VIO subsystem - Frame-to-Frame residual
+
+- 정답처럼 보이는 map도, pixel에서의 point도 GT에 noise가 있다고 생각
+  - 결국 추정된 값이기 때문에, GT에 noise가 더해진 형태
+$${}^G\mathbf{p}_s = {}^G\mathbf{p}_s^{\text{gt}} + \mathbf{n}_{\mathbf{p}_s}, \quad \mathbf{n}_{\mathbf{p}_s} \sim \mathcal{N}(\mathbf{0}, \boldsymbol{\Sigma}_{\mathbf{n}_{\mathbf{p}_s}})$$
+$$\boldsymbol{\rho}_{s_k} = \boldsymbol{\rho}_{s_k}^{\text{gt}} + \mathbf{n}_{\boldsymbol{\rho}_{s_k}}, \quad \mathbf{n}_{\boldsymbol{\rho}_{s_k}} \sim \mathcal{N}(\mathbf{0}, \boldsymbol{\Sigma}_{\mathbf{n}_{\boldsymbol{\rho}_{s_k}}})$$
+
+- 이상적인 조건이라면, position도, pixel도, 3차원의 점도 모두 residual이 0일것!
+    - 하지만, 현재 추정된 pose, map point, pixel의 위치는 GT에 noise가 더해진 형태
+.nt-01[
+$$\mathbf{0} = \mathbf{r}(\mathbf{x}_k, \boldsymbol{\rho}_{s_k}^{\text{gt}}, {}^G\mathbf{p}_s^{\text{gt}}) \approx \mathbf{r}(\check{\mathbf{x}}_k, \boldsymbol{\rho}_{s_k}, {}^G\mathbf{p}_s) + \mathbf{H}_s^r \delta\check{\mathbf{x}}_k + \boldsymbol{\alpha}_s$$
+]
+
+---
+# Method
+### VIO subsystem - Frame-to-Frame residual
+
+where $\boldsymbol{\alpha}_s \sim \mathcal{N}(\mathbf{0}, \boldsymbol{\Sigma}_{\boldsymbol{\alpha}_s})$ and
+
+$$\mathbf{H}_s^r = \frac{\partial \mathbf{r}_c(\check{\mathbf{x}}_k \boxplus \delta\check{\mathbf{x}}_k,\, \boldsymbol{\rho}_{s_k},\, {}^G\mathbf{p}_s)}{\partial \delta\check{\mathbf{x}}_k}\bigg|_{\delta\check{\mathbf{x}}_k=\mathbf{0}}$$
+$$\boldsymbol{\Sigma}_{\boldsymbol{\alpha}_s} = \boldsymbol{\Sigma}_{\mathbf{n}_{\boldsymbol{\rho}_{s_k}}} + \mathbf{F}_{\mathbf{p}_s}^r \boldsymbol{\Sigma}_{\mathbf{p}_s} \mathbf{F}_{\mathbf{p}_s}^{r\,T}$$
+$$\mathbf{F}_{\mathbf{p}_s}^r = \frac{\partial \mathbf{r}(\check{\mathbf{x}}_k,\, \boldsymbol{\rho}_{s_k},\, {}^G\mathbf{p}_s)}{\partial {}^G\mathbf{p}_s}$$
+
+- 즉, error state로 편미분 한 것과, map point의 uncertianty, 그리고 KLT의 uncertainty를 더한 형태로 표현
+
+---
+# Method
+### VIO subsystem - Frame-to-Frame VIO ESIKF update
+- 앞서 nominal state일 때 residual을 구했음
+- 이게 최적의 residual이 아니니, iterative하게 error state를 업데이트 하면서, residual을 줄이도록!
+
+$$\min_{\delta\check{\mathbf{x}}_k} \left( \|\check{\mathbf{x}}_k \boxminus \hat{\mathbf{x}}_k + \mathcal{H}\delta\check{\mathbf{x}}_k\|^2_{\boldsymbol{\Sigma}_{\delta\hat{\mathbf{x}}_k}} + \sum_{s=1}^{m} \|\mathbf{r}\!\left(\check{\mathbf{x}}_k, \boldsymbol{\rho}_{s_k}, {}^G\mathbf{p}_s\right) + \mathbf{H}_s^r \delta\check{\mathbf{x}}_k\|^2_{\boldsymbol{\Sigma}_{\boldsymbol{\alpha}_s}} \right) \tag{12}$$
+
+---
+# Method
+### VIO subsystem - Frame-to-Frame VIO ESIKF update
+
+.pull-left[
+
+$$\mathbf{H} = \left[\mathbf{H}_1^{r\,T}, \ldots, \mathbf{H}_m^{r\,T}\right]^T$$
+
+$$\mathbf{R} = \text{diag}(\boldsymbol{\Sigma}_{\boldsymbol{\alpha}_1}, \ldots, \boldsymbol{\Sigma}_{\boldsymbol{\alpha}_m})$$
+
+$$\check{\mathbf{z}}_k = \left[\mathbf{r}\!\left(\check{\mathbf{x}}_k, \boldsymbol{\rho}_{1_k}, {}^G\mathbf{p}_1\right) \cdots \mathbf{r}\!\left(\check{\mathbf{x}}_k, \boldsymbol{\rho}_{m_k}, {}^G\mathbf{p}_m\right)\right]^T$$
+
+]
+
+.pull-right[
+
+$$\mathbf{P} = (\mathcal{H})^{-1} \boldsymbol{\Sigma}_{\delta\hat{\mathbf{x}}_k} (\mathcal{H})^{-T}$$
+
+Following [6], we have the Kalman gain computed as:
+
+$$\mathbf{K} = \left(\mathbf{H}^T \mathbf{R}^{-1} \mathbf{H} + \mathbf{P}^{-1}\right)^{-1} \mathbf{H}^T \mathbf{R}^{-1}$$
+
+Then we can update the state estimate as:
+
+$$\check{\mathbf{x}}_k = \check{\mathbf{x}}_k \boxplus \left(-\mathbf{K}\check{\mathbf{z}}_k - (\mathbf{I} - \mathbf{K}\mathbf{H})(\mathcal{H})^{-1}\left(\check{\mathbf{x}}_k \boxminus \hat{\mathbf{x}}_k\right)\right)$$
+
+]
+
+.center[
+  <span style="font-size: 5rem;">🥵</span>
+]
+
+---
+# Method
+
+.pull-left[
+- 결국은 뭘 하고싶은것인가?
+    1. LIO로 nominal state 구하기
+    2. frame-to-frame photometric residual을 이용하여 ESIKF로 update
+    3. frame-to-map phtometric residual을 이용하여 ESIKF로 update
+    4. ESIKF는 Gauss-Newton 방식과 동일하게!
+
+]
+.pull-right.nr-01[
+  <img src="fig/fig_4.png" width="100%">
+]
+
+---
+# Method
+### Render the texture of global map
+.pull-left[
+- 총 3단계의 pose estimation 단계를 거치면, 현재 pose에서 본 image도 정확해졌을 것
+- 이 위치를 기반으로, map point의 RGB color를 이용하여, 현재 이미지에서 보이는 point들의 색을 render할 수 있음
+- 즉, 기존 map의 색과, 현재 render한 색을 비교해서, 더 정확한 색으로 바꾸자!
+]
+.pull-right[
+  <img src="fig/render_explain.png" width="100%">
+]
+
+---
+# Experiments
+.pull-left.ml-02.nt-02[
+   <img src="fig/fig_7.png" width="90%">
+]
+
+.pull-right.nt-08[
+   <img src="fig/fig_10.png" width="90%">
+]
+
+
+
+---
+# Experiments
+.pull-left.ml-02.nt-02[
+   <img src="fig/fig_13.png" width="70%">
+]
+
+.pull-right.nt-08[
+  <img src="fig/experiments_tab.png" width="100%">
+]
+
+---
+# Conclusion
+- LiDAR-Camera-IMU sensor fusion을 통한 RGB-colored point cloud map 생성 알고리즘
+- NeRF가 나오고, Instant-NGP가 나올 때, SLAM에선 여전히 이런일이 있었다.
+  - 3D Gaussian Splatting win..
+- ESIKF는 결국 optimization과 다를 바 없다?
+- 진정한 tightly-coupled 방식은 아니다.
+     - Geometry와 texture가 서로 영향을 주지 않는다. 이게 맞나?
+- R3LIVE도 Covariance를 계속해서 다룬다, 3DGS와 연결지을 수 있는 방법은? 

@@ -9,6 +9,7 @@ This is a project file of presentations started from 2025.01.13
 
 | 발표 자료 | 링크 |
 |---|---|
+| RMGS-SLAM (arXiv 2026) | [슬라이드 보기](https://msk-kwu.github.io/Presentations/Paper_review/2026%20%28arXiv%29%20RMGS-SLAM/rmgs_slam.html) |
 | GSO-SLAM (RA-L 2026) | [슬라이드 보기](https://msk-kwu.github.io/Presentations/Paper_review/2026%20%28RA-L%29%20GSO-SLAM/GSO_SLAM_presentation.html) |
 | GSO-SLAM NP (RA-L 2026) | [슬라이드 보기](https://msk-kwu.github.io/Presentations/Paper_review/2026%20%28RA-L%29%20GSO-SLAM_np/GSO_SLAM_np_presentation.html) |
 | SurfSplat (ICLR 2026) | [슬라이드 보기](https://msk-kwu.github.io/Presentations/Paper_review/2026%20%28ICLR%29%20SurfSplat/SurfSplat_presentation.html) |

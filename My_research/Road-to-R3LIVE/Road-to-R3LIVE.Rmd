@@ -70,19 +70,11 @@ count: false -->
     
 ---
 # Notations
-.pull-left[
 - Scalars, Vectors, Matrices
   - Scalars: $x, y, z$
   - Vectors: $\mathbf{x}, \mathbf{y}, \mathbf{z}$
   - Matrices: $\mathbf{X}, \mathbf{Y}, \mathbf{Z}$
 
-
-- Predicted state: $\bar{x}_t \sim \mathcal{N}(\bar{\mu}_t, \bar{\Sigma}_t)$
-- Corrected state: $x_t \sim \mathcal{N}(\mu_t, \Sigma_t)$
-]
-
-.pull-right[
-]
 
 ---
 # Filter-based LiDAR-Inertial Odometry
@@ -97,21 +89,21 @@ count: false -->
 # Kalman Filter - Linear System
 - Kalman Filter의 대표적인 가정 3가지
   - Gaussian noise assumption: 시스템의 노이즈는 가우시안 분포를 따른다고 가정
-    $$p(x) = \det(2\pi\Sigma)^{-\frac{1}{2}}\exp\left\{-\frac{1}{2}(x-\mu)^T\Sigma^{-1}(x-\mu)\right\}$$
+    $$p(\mathbf{x}) = \det(2\pi\Sigma)^{-\frac{1}{2}}\exp\left\{-\frac{1}{2}(\mathbf{x}-\boldsymbol{\mu})^\top\Sigma^{-1}(\mathbf{x}-\boldsymbol{\mu})\right\}$$
 
   - Markov assumption: 시스템의 상태는 바로 **직전 상태**에만 의존한다고 가정
-    $$p(x_t) = p(x_t | x_{t-1}, u_t)$$
+    $$p(\mathbf{x}_t) = p(\mathbf{x}_t | \mathbf{x}_{t-1}, \mathbf{u}_t)$$
 
   - Linear system이라고 가정 
-      $$x_{t} = A x_{t-1} + B u_{t} + \epsilon_{t}$$
+      $$\mathbf{x}_{t} = \mathbf{A} \mathbf{x}_{t-1} + \mathbf{B} \mathbf{u}_{t} + \epsilon_{t}$$
 
 
 
 ---
 # Kalman Filter - Linear System
-- 여기서 $x_t$는 시스템의 상태 벡터, $u_t$는 시스템에 가해지는 제어 입력, $\epsilon_t \sim \mathcal{N}(0, R)$는 시스템 노이즈
+- 여기서 $\mathbf{x}_t$는 시스템의 상태 벡터, $\mathbf{u}_t$는 시스템에 가해지는 제어 입력, $\epsilon_t \sim \mathcal{N}(0, R)$는 시스템 노이즈
 .f-80[
-$$x_t = 
+$$\mathbf{x}_t = 
 \begin{pmatrix} 
   x_{1,t} \\
   x_{2,t} \\
@@ -119,7 +111,7 @@ $$x_t =
   x_{n,t}
 \end{pmatrix}
 \quad \text{and} 
-\quad u_t =
+\quad \mathbf{u}_t =
 \begin{pmatrix} 
   u_{1,t} \\
   u_{2,t} \\
@@ -127,13 +119,7 @@ $$x_t =
   u_{m,t}
 \end{pmatrix}$$
 ]
-
-- $t-1$에서 $t$로 motion model의 선형변환은 아래와 같음
-  .nl-03.f-80[
-    $$x_t = A_t x_{t-1} + B_t u_t + \epsilon_t$$
-    $$p(x_t | x_{t-1}, u_t) = \det(2\pi R)^{-\frac{1}{2}}\exp\left\{-\frac{1}{2}(x_t-(A_tx_{t-1}+B_tu_t))^\top R^{-1}(x_t-(A_tx_{t-1}+B_tu_t))\right\}$$
-  ]
-
+- 그렇다면, 선형변환일 때의 평균과 공분산이 어떻게 이동하는지 수학으로 알아봅시당😁
 ---
 # Kalman Filter - Linear System
 ### 도대체 넌 왜 why..
@@ -184,32 +170,32 @@ $$\Delta \mathbf{x}_i \Delta \mathbf{x}_i^\top =
 
 ---
 # Kalman Filter - Linear System
-- $\mathbf{x} \sim \mathcal{N}(\boldsymbol{\mu}, \boldsymbol{\Sigma})$이고, $\mathbf{y} = A\mathbf{x} + \mathbf{b}$의 선형변환이 가해진다고 할 때,
+- $\mathbf{x} \sim \mathcal{N}(\boldsymbol{\mu}, \boldsymbol{\Sigma})$이고, $\mathbf{y} = \mathbf{A}\mathbf{x} + \mathbf{b}$의 선형변환이 가해진다고 할 때,
 
 .pull-left.sub-list[
 - 평균 이동
 
 $$\boldsymbol{\mu}_{\mathbf{y}} = \frac{1}{n}\sum_{i=1}^{n} \mathbf{y}_i 
-= \frac{1}{n}\sum_{i=1}^{n} (A\mathbf{x}_i + \mathbf{b}) \\
-\rightarrow A\left(\frac{1}{n}\sum_{i=1}^{n}\mathbf{x}_i\right) + \mathbf{b} = A\boldsymbol{\mu} + \mathbf{b}$$
+= \frac{1}{n}\sum_{i=1}^{n} (\mathbf{A}\mathbf{x}_i + \mathbf{b}) \\
+\rightarrow \mathbf{A}\left(\frac{1}{n}\sum_{i=1}^{n}\mathbf{x}_i\right) + \mathbf{b} = \mathbf{A}\boldsymbol{\mu} + \mathbf{b}$$
 
-$$\therefore \boldsymbol{\mu}_{\mathbf{y}} = A\boldsymbol{\mu} + \mathbf{b}$$
+$$\therefore \boldsymbol{\mu}_{\mathbf{y}} = \mathbf{A}\boldsymbol{\mu} + \mathbf{b}$$
 ]
 
 .pull-right.sub-list[
 - 공분산 이동
-
+.f-60[
 $$\boldsymbol{\Sigma}_{\mathbf{y}}
-= \frac{1}{n}\sum_{i=1}^{n}(\mathbf{y}_i - \boldsymbol{\mu}_{\mathbf{y}})(\mathbf{y}_i - \boldsymbol{\mu}_{\mathbf{y}})^\top \\
-= \frac{1}{n}\sum_{i=1}^{n} A(\mathbf{x}_i - \boldsymbol{\mu})(\mathbf{x}_i - \boldsymbol{\mu})^\top A^\top \\
-= A\!\left(\frac{1}{n}\sum_{i=1}^{n}(\mathbf{x}_i - \boldsymbol{\mu})(\mathbf{x}_i - \boldsymbol{\mu})^\top\right)\!A^\top = A\,\boldsymbol{\Sigma}\,A^\top$$
+= \frac{1}{n}\sum_{i=1}^{n}(\mathbf{y}_i - \boldsymbol{\mu}_{\mathbf{y}})(\mathbf{y}_i - \boldsymbol{\mu}_{\mathbf{y}})^\top$$
 
-$$\therefore \boldsymbol{\Sigma}_{\mathbf{y}} = A\,\boldsymbol{\Sigma}\,A^\top$$
-]
+$$\frac{1}{n}\sum_{i=1}^{n}\big[(\mathbf{A}\mathbf{x}_i + \mathbf{b}) - (\mathbf{A}\boldsymbol{\mu}_{\mathbf{x}} + \mathbf{b})\big]
+\big[(\mathbf{A}\mathbf{x}_i + \mathbf{b}) - (\mathbf{A}\boldsymbol{\mu}_{\mathbf{x}} + \mathbf{b})\big]^\top$$
 
+$$=\frac{1}{n}\sum_{i=1}^{n} \mathbf{A}(\mathbf{x}_i - \boldsymbol{\mu})(\mathbf{x}_i - \boldsymbol{\mu})^\top \mathbf{A}^\top$$
+$$=\mathbf{A}\!\left(\frac{1}{n}\sum_{i=1}^{n}(\mathbf{x}_i - \boldsymbol{\mu})(\mathbf{x}_i - \boldsymbol{\mu})^\top\right)\!\mathbf{A}^\top = \mathbf{A}\,\boldsymbol{\Sigma}\,\mathbf{A}^\top$$
 
-- 따라서, $\mathbf{y} \sim \mathcal{N}(A\boldsymbol{\mu} + \mathbf{b},\; A\boldsymbol{\Sigma}A^\top)$
-
+$$\therefore \boldsymbol{\Sigma}_{\mathbf{y}} = \mathbf{A}\,\boldsymbol{\Sigma}\,\mathbf{A}^\top$$
+]]
 
 <!-- ---
 # Kalman Filter - Linear System
@@ -221,30 +207,50 @@ $$\therefore \boldsymbol{\Sigma}_{\mathbf{y}} = A\,\boldsymbol{\Sigma}\,A^\top$$
 - $x_{t-1}$의 상태를 정확히 알고 있다면,  $x_{t-1} \sim \mathcal{N}(0, I)$라고 할 수 있음 -->
 
 ---
-# Kalman Filter - Linear System
-- 따라서, 이전 state와 control input에 의한 **prediction**
-- 실제 우리가 추정해야하는 state는, 여기에 error를 더하면 올바르다고 가정
-$$\mathbf{x}_t = \mathbf{\bar{x}}_t + \boldsymbol{\epsilon}_t \text{,} \quad \boldsymbol{\epsilon}_t \sim \mathcal{N}(0, \mathbf{R})$$
+# Kalman Filter - Prediction step
+- 그래서,, previous state와 control input만 가지고 prediction을 해보면
+  - 이전 state에 대해서는 확실히 알고있다고 가정하면, 
+$$\mathbf{x}_{t-1} \sim \mathcal{N}(\boldsymbol{\mu}_{t-1}, \mathbf{0}) \text{,} \quad \boldsymbol{\mu}_{t-1} = \mathbf{x}_{t-1}$$
+  - 정확한 이전 state를 기준으로 선형변환이 가해진다고 가정하면, 선형변환된 **평균**을 알 수 있음
+$$\mathbf{\hat{\mu}_x}_t = \mathbf{A}_t \mathbf{x}_{t-1} + \mathbf{B}_t \mathbf{u}_t$$
+  - 여기에, motion/process noise를 고려하면, 다음과 같이 **공분산** 계산가능
+$$\boldsymbol{\epsilon}_t \sim \mathcal{N}(0, \mathbf{R}) \text{,} \quad \hat{\Sigma}_t = \mathbf{A}_t 0 \mathbf{A}_t^\top +  \mathbf{R} =  \mathbf{R}$$
 
-- Prediction 값은 오직 이전 state와 control input에 의해서만 결정
-    $$\mathbf{\bar{x}}_t \sim \mathcal{N}(\bar{\mu}_{x_t}, \bar{\Sigma}_{x_t}) \text{,} \quad \bar{\mu}_{x_t} = \mathbf{A}_t \mathbf{x}_{t-1} + \mathbf{B}_t \mathbf{u}_t \text{,} \quad \bar{\Sigma}_{x_t} = \mathbf{A}_t \mathbf{0} \mathbf{A}_t^\top + \mathbf{R}$$
-
-.nl-02[
-  $$p(\mathbf{x}_t | \mathbf{x}_{t-1}, \mathbf{u}_t) = \exp\left\{-\frac{1}{2}(\mathbf{x}_t-(\mathbf{A}_t\mathbf{x}_{t-1}+\mathbf{B}_t\mathbf{u}_t))^\top \mathbf{R}^{-1}(\mathbf{x}_t-(\mathbf{A}_t\mathbf{x}_{t-1}+\mathbf{B}_t\mathbf{u}_t))\right\}$$
-]
-
-$$p(\mathbf{x}_t | \mathbf{x}_{t-1}, \mathbf{u}_t) = \exp\left\{-\frac{1}{2}(\mathbf{x}_t-\bar{\mu}_{x_t})^\top 
-\bar{\Sigma}_{x_t}^{-1}(\mathbf{x}_t-\bar{\mu}_{x_t})\right\} = p(\mathbf{x}_t)$$
 
 ---
-# Kalman Filter - Linear System
-- 다음으로 correction step
+# Kalman Filter - Prediction step
+- 따라서, 다음 state $\mathbf{x}_t$는 선형변환된 평균과 motion/process noise를 반영하여 표현 가능
+$$\mathbf{x}_t = \mathbf{\hat{\mu}_x}_t + \boldsymbol{\epsilon}_t = \mathbf{A}_t \mathbf{x}_{t-1} + \mathbf{B}_t \mathbf{u}_t + \boldsymbol{\epsilon}_t$$
+      
+- 확률관점에서 다시 정리해보면, 다음 state는 prediction mean 주변에 있을 가능성이 가장 높고, 그 불확실성은 covariance로 표현
+.nl-03[
+$$p(\mathbf{x}_t | \mathbf{x}_{t-1}, \mathbf{u}_t) = \eta \exp\left\{-\frac{1}{2}(\mathbf{x}_t-(\mathbf{A}_t\mathbf{x}_{t-1}+\mathbf{B}_t\mathbf{u}_t))^\top \mathbf{R}^{-1}(\mathbf{x}_t-(\mathbf{A}_t\mathbf{x}_{t-1}+\mathbf{B}_t\mathbf{u}_t))\right\}$$
+$$p(\mathbf{x}_t) \triangleq  p(\mathbf{x}_t | \mathbf{x}_{t-1}, \mathbf{u}_t) = \eta \exp\left\{-\frac{1}{2}(\mathbf{x}_t-\hat{\mu}_{x_t})^\top 
+\hat{\Sigma}_{x_t}^{-1}(\mathbf{x}_t-\hat{\mu}_{x_t})\right\}$$
+
+]
+
+
+---
+# Kalman Filter - Correction step
+
 - Measurement model
-$$\mathbf{z}_t = \mathbf{C}_t \mathbf{x}_t + \boldsymbol{\delta}_t$$
-- 만약에 state가 정답이라고 가정하면, 관측값은 아래와 같음
-$$\mathbf{z}_t \sim \mathcal{N}(\boldsymbol{\bar{\mu}}_{z_t}, \boldsymbol{\bar{\Sigma}}_{z_t}) \text{,} \quad \boldsymbol{\bar{\mu}}_{z_t} = \mathbf{C}_t \mathbf{x}_t \text{,} \quad \boldsymbol{\bar{\Sigma}}_{z_t} = \mathbf{C}_t 0 \mathbf{C}_t^\top + \mathbf{Q}$$
-- 정답과의 차이
-$$p(\mathbf{z}_t | \mathbf{x}_t) = \exp\left\{-\frac{1}{2}(\mathbf{z}_t-\mathbf{C}_t \mathbf{x}_t)^\top \mathbf{Q}^{-1}(\mathbf{z}_t-\mathbf{C}_t \mathbf{x}_t)\right\}$$
+$$\mathbf{z}_t = \mathbf{C}_t \mathbf{x}_t + \boldsymbol{\delta}_t \text{,} \quad \boldsymbol{\delta}_t \sim \mathcal{N}(0, \mathbf{Q})$$
+
+- $\mathbf{z}_t$는 실제 LiDAR로부터 얻은 관측값, $\mathbf{C}_t \mathbf{x}_t$는 예측된 state에서 관측될 것이라 생각하는 값
+  - Prediction step과 동일하게, state가 정확하다면, 아래와 같이 쓸 수 있음
+  $$\boldsymbol{\hat{\mu}}_{z_t} = \mathbf{C}_t \mathbf{x}_t \text{,} \quad \boldsymbol{\hat{\Sigma}}_{z_t} = \mathbf{C}_t 0 \mathbf{C}_t^\top + \mathbf{Q}$$
+  
+
+$$p(\mathbf{z}_t | \mathbf{x}_t) = \eta \exp\left\{-\frac{1}{2}(\mathbf{z}_t-\mathbf{C}_t \mathbf{x}_t)^\top \mathbf{Q}^{-1}(\mathbf{z}_t-\mathbf{C}_t \mathbf{x}_t)\right\}$$
+
+
+---
+# Kalman Filter - Correction step
+- 그런데, 우리에게 주어진 state는 이전 prediction step에서 구한 state
+$$\mathbf{x}_t \sim \mathcal{N}(\hat{\boldsymbol{\mu}}_{x_t}, \hat{\boldsymbol{\Sigma}}_{x_t})$$
+- 이 값들을 기준으로 measurement model을 다시 써보면,
+$$\mathbf{\boldsymbol{\hat{\mu}}}_{z_t} = \mathbf{C}_t \boldsymbol{\hat{\mu}}_{\mathbf{x}_t} \text{,} \quad \boldsymbol{\hat{\Sigma}}_{z_t} = \mathbf{C}_t \hat{\Sigma}_{x_t} \mathbf{C}_t^\top + \mathbf{Q}$$
 ---
 # Kalman Filter - Bayes' Rule
 - 이 결과를 이용하여, Bayes rule에 의해 지수부분을 합으로 표현

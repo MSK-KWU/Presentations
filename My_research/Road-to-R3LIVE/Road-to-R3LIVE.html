@@ -233,27 +233,26 @@ count: false --&gt;
 `$$\mathbf{z}_t = \mathbf{C}_t \mathbf{x}_t + \boldsymbol{\delta}_t \text{,} \quad \boldsymbol{\delta}_t \sim \mathcal{N}(0, \mathbf{Q})$$`
 
 - `\(\mathbf{z}_t\)`는 실제 LiDAR로부터 얻은 관측값, `\(\mathbf{C}_t \mathbf{x}_t\)`는 예측된 state에서 관측될 것이라 생각하는 값
-  - Prediction step과 동일하게, state가 정확하다면, 아래와 같이 쓸 수 있음
-  `$$\boldsymbol{\hat{\mu}}_{z_t} = \mathbf{C}_t \mathbf{x}_t \text{,} \quad \boldsymbol{\hat{\Sigma}}_{z_t} = \mathbf{C}_t 0 \mathbf{C}_t^\top + \mathbf{Q}$$`
-  
-
+- 따라서, 내 예측한 state가 맞다고 가정하면
+`$$\mathbf{z}_t \sim \mathcal{N}(\mathbf{C}_t \mathbf{x}_t, \mathbf{Q})$$`
 `$$p(\mathbf{z}_t | \mathbf{x}_t) = \eta \exp\left\{-\frac{1}{2}(\mathbf{z}_t-\mathbf{C}_t \mathbf{x}_t)^\top \mathbf{Q}^{-1}(\mathbf{z}_t-\mathbf{C}_t \mathbf{x}_t)\right\}$$`
 
 
----
+&lt;!-- ---
 # Kalman Filter - Correction step
 - 그런데, 우리에게 주어진 state는 이전 prediction step에서 구한 state
 `$$\mathbf{x}_t \sim \mathcal{N}(\hat{\boldsymbol{\mu}}_{x_t}, \hat{\boldsymbol{\Sigma}}_{x_t})$$`
 - 이 값들을 기준으로 measurement model을 다시 써보면,
-`$$\mathbf{\boldsymbol{\hat{\mu}}}_{z_t} = \mathbf{C}_t \boldsymbol{\hat{\mu}}_{\mathbf{x}_t} \text{,} \quad \boldsymbol{\hat{\Sigma}}_{z_t} = \mathbf{C}_t \hat{\Sigma}_{x_t} \mathbf{C}_t^\top + \mathbf{Q}$$`
+`$$\mathbf{\boldsymbol{\hat{\mu}}}_{z_t} = \mathbf{C}_t \boldsymbol{\hat{\mu}}_{\mathbf{x}_t} \text{,} \quad \boldsymbol{\hat{\Sigma}}_{z_t} = \mathbf{C}_t \hat{\Sigma}_{x_t} \mathbf{C}_t^\top + \mathbf{Q}$$`\ --&gt;
+
 ---
 # Kalman Filter - Bayes' Rule
 - 이 결과를 이용하여, Bayes rule에 의해 지수부분을 합으로 표현
 `$$p(\mathbf{x}_t | \mathbf{z}_t) = \eta p(\mathbf{z}_t | \mathbf{x}_t) p(\mathbf{x}_t) \\
 \rightarrow \exp(-\frac{1}{2}Likelihood) \times \exp(-\frac{1}{2}Prior) \rightarrow \exp(-\frac{1}{2}(Likelihood + Prior))$$`
-- 이를 함수로 모아다가 다시 써보면
-`$$\mathbf{J}(x_t) = \exp\left\{-\frac{1}{2}((x_t-\bar{\mu}_{x_t})^\top \bar{\Sigma}_{x_t}^{-1}(x_t-\bar{\mu}_{x_t}) + 
-(z_t-\mathbf{C}_t x_t)^\top \mathbf{Q}^{-1}(z_t-\mathbf{C}_t  x_t)) \right\}$$`
+- 이를 함수로 모아다가 중한것들만 남기곤 다시 써보면
+`$$\mathbf{J}(x_t) = ((x_t-\bar{\mu}_{x_t})^\top \bar{\Sigma}_{x_t}^{-1}(x_t-\bar{\mu}_{x_t}) + 
+(z_t-\mathbf{C}_t x_t)^\top \mathbf{Q}^{-1}(z_t-\mathbf{C}_t  x_t))$$`
 &lt;!-- `$$\exp\left\{-\frac{1}{2}((x_t-\hat{\mu}_t)^\top \hat{\Sigma}_{x_t}^{-1}(x_t-\hat{\mu}_t) + (z_t-\hat{z}_t)^\top Q^{-1}(z_t-\hat{z}_t)) \right\}$$` --&gt;
   &lt;!-- - 실제 관측값과, 예측된 관측값의 차이를 이용해서 correction step을 수행
 `$$p(z_t | \bar{x}_t) = \exp\left\{-\frac{1}{2}(z_t-\bar{\mu}_{z_t})^\top Q^{-1}(z_t-\bar{\mu}_{z_t})\right\}$$` --&gt;
@@ -263,13 +262,13 @@ count: false --&gt;
 # Kalman Filter - Maximum A Posteriori (MAP)
 - 전개해봅시다
 .f-80.nl-05[
-`$$\mathbf{J}(\mathbf{x}_t)= \exp\left\{-\frac{1}{2}\Bigg( \mathbf{x}_t^\top \bar{\Sigma}_{x_t}^{-1} \mathbf{x}_t - 2\bar{\mu}_{x_t}^\top \bar{\Sigma}_{x_t}^{-1} 
+`$$\mathbf{J}(\mathbf{x}_t)=\Bigg( \mathbf{x}_t^\top \bar{\Sigma}_{x_t}^{-1} \mathbf{x}_t - 2\bar{\mu}_{x_t}^\top \bar{\Sigma}_{x_t}^{-1} 
 \mathbf{x}_t + \bar{\mu}_{x_t}^\top \bar{\Sigma}_{x_t}^{-1} \bar{\mu}_{x_t}+ \mathbf{z}_t^\top \mathbf{Q}^{-1} \mathbf{z}_t - 2 \mathbf{z}_t^\top \mathbf{Q}^{-1} 
-\mathbf{C}_t \mathbf{x}_t + \mathbf{x}_t^\top \mathbf{C}_t^\top \mathbf{Q}^{-1} \mathbf{C}_t \mathbf{x}_t\Bigg)\right\}$$`
+\mathbf{C}_t \mathbf{x}_t + \mathbf{x}_t^\top \mathbf{C}_t^\top \mathbf{Q}^{-1} \mathbf{C}_t \mathbf{x}_t\Bigg)$$`
 ]
 
-`$$= \exp\left\{-\frac{1}{2}\Bigg(\mathbf{x}_t^\top (\bar{\Sigma}_{x_t}^{-1} + \mathbf{C}_t^\top \mathbf{Q}^{-1} \mathbf{C}_t) 
-\mathbf{x}_t - 2\bar{\mu}_{x_t}^\top \bar{\Sigma}_{x_t}^{-1} \mathbf{x}_t - 2 \mathbf{z}_t^\top \mathbf{Q}^{-1} \mathbf{C}_t \mathbf{x}_t+ const \Bigg)\right\}$$`
+`$$= \Bigg(\mathbf{x}_t^\top (\bar{\Sigma}_{x_t}^{-1} + \mathbf{C}_t^\top \mathbf{Q}^{-1} \mathbf{C}_t) 
+\mathbf{x}_t - 2\bar{\mu}_{x_t}^\top \bar{\Sigma}_{x_t}^{-1} \mathbf{x}_t - 2 \mathbf{z}_t^\top \mathbf{Q}^{-1} \mathbf{C}_t \mathbf{x}_t+ const \Bigg)$$`
 
 - 여기서 제일정확한 `\(\mathbf{x}_t\)`는 `\(\mathbf{J}(\mathbf{x}_t)\)`가 최대가 되는 지점 `\(\rightarrow\)` MAP! 를 구하면 됨
 `$$\frac{\partial \mathbf{J}(\mathbf{x}_t)}{\partial \mathbf{x}_t} = \bar{\Sigma}_{x_t}^{-1}(\mathbf{x}_t-\bar{\mu}_{x_t}) - 2\mathbf{C}_t^\top \mathbf{Q}^{-1}(\mathbf{z}_t-\mathbf{C}_t \mathbf{x}_t) = 0$$`
@@ -291,7 +290,7 @@ count: false --&gt;
 
 ---
 # Kalman Filter - Kalman Gain derivation
-- 여기서, 관측값에 대해 잠시 예측한 pose를 기준으로 한 녀석을 잠깐 가져옴
+- Kalman Gain을 구하기 위해서, predicted mean으로부터 예상되는 관측값 잠깐 활용
 `$$\mathbf{z}_t-\mathbf{C}_t \mathbf{x}_t = \mathbf{z}_t - \mathbf{C}_t \bar{\mu}_{x_t} + \mathbf{C}_t (\bar{\mu}_{x_t} - \mathbf{x}_t) = (\mathbf{z}_t - \mathbf{C}_t \bar{\mu}_{x_t}) - \mathbf{C}_t(\mathbf{x}_t - \bar{\mu}_{x_t})$$`
 
 - 이를 기존 식에 대입해보면
@@ -307,7 +306,7 @@ count: false --&gt;
 `$$\mathbf{x}_t = \bar{\mu}_{x_t} + \underbrace{(\bar{\Sigma}_{x_t}^{-1} + \mathbf{C}_t^\top \mathbf{Q}^{-1} \mathbf{C}_t)^{-1}\mathbf{C}_t^\top \mathbf{Q}^{-1}}_{\mathbf{K}_t \text{(Kalman Gain!)}} (\mathbf{z}_t - \mathbf{C}_t \bar{\mu}_{x_t})$$`
 - 근데 Kalman Gain은 ..?
 `$$\mathbf{K}_t = \bar{\Sigma}_{x_t}\,\mathbf{C}_t^\top\left(\mathbf{C}_t\bar{\Sigma}_{x_t}\mathbf{C}_t^\top + \mathbf{Q}\right)^{-1}$$`
-- 다른데요 선생님...
+- 근데 저희가 아는 Kalman gain이랑 모양이 조금 다른데요...
 
 ---
 # Kalman Filter - Kalman Gain derivation

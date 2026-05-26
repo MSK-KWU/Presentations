@@ -438,14 +438,16 @@ $$ \mathbf{A}^{-1}\mathbf{A} = \mathbf{I} \text{,} \quad \mathbf{A}\mathbf{A}^{-
 ]
 
 ---
-# Extended Kalman Filter - Gradient, Jacobian, Hessian
+# Extended Kalman Filter - 1st order approximation
 - Taylor expansion을 이용해서, KF를 EKF로! 
-- 다만, 변수가 하나가 아니기 때문에, 편미분을 이용해서, Gradient, Jacobian, Hessian을 이용해서 표현
-  -  
+- EKF에서는 1st-order approximation을 이용해서 시스템 모델과 관측 모델을 선형화
+- 이 때, 선형화 과정에서 벡터를 벡터로 미분한 Jacobian 사용
+- Gradient 가 아니라 대부분 Jacobian을 씀 왜?
+  - state는 단순한 하나의 변수가 아님; 다변수임(pose, velocity, bias 등등)
 
 
 ---
-# Extended Kalman Filter - Gradient, Jacobian, Hessian
+# Extended Kalman Filter - 1st order approximation
 
 .pull-left[
 - Gradient: 스칼라 함수의 벡터 입력에 대한 편미분
@@ -468,7 +470,7 @@ $$ \mathbf{A}^{-1}\mathbf{A} = \mathbf{I} \text{,} \quad \mathbf{A}\mathbf{A}^{-
 ]
 
 ---
-# Extended Kalman Filter - Gradient, Jacobian, Hessian
+# Extended Kalman Filter - 1st order approximation
 - Hessian: 스칼라 함수의 벡터 입력에 대한 이차 편미분
 `$$\mathbf{H}(\mathbf{x}) = \begin{pmatrix}
   \frac{\partial^2 f}{\partial x_1^2} &amp; \frac{\partial^2 f}{\partial x_1 \partial x_2} &amp; \cdots &amp; \frac{\partial^2 f}{\partial x_1 \partial x_n} \\
@@ -478,20 +480,15 @@ $$ \mathbf{A}^{-1}\mathbf{A} = \mathbf{I} \text{,} \quad \mathbf{A}\mathbf{A}^{-
 \end{pmatrix}$$`
 
 ---
-# Extended Kalman Filter - Gradient, Jacobian, Hessian
-- 이게 무슨소리입니까 휴먼?
-- 그림으로 보면 이렇게 볼 수 있다.
+# Extended Kalman Filter - 1st order approximation
+- 수식으로 보면 아래와 같이 쓸 수 있음
+  - Gradient
+`$$f(\mathbf{x}) \approx f(\mathbf{x}_0) + \nabla f(\mathbf{x}_0)(\mathbf{x} - \mathbf{x}_0)$$`
+  - Jacobian
+`$$\mathbf{f}(\mathbf{x}) \approx \mathbf{f}(\mathbf{x}_0) + \mathbf{J}(\mathbf{x}_0)(\mathbf{x} - \mathbf{x}_0)$$`
 
-.pull-left[
-&lt;img src="fig/gradient_fig.png" width="100%"&gt;
-]
-
-.pull-right[
-
-]
-
-
-
+- EKF에서의 state transition
+$$$$
 
 ---
 # Extended Kalman Filter - Gradient, Jacobian, Hessian

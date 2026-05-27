@@ -478,23 +478,94 @@ $$ \mathbf{A}^{-1}\mathbf{A} = \mathbf{I} \text{,} \quad \mathbf{A}\mathbf{A}^{-
   \vdots &amp; \vdots &amp; \ddots &amp; \vdots \\
   \frac{\partial^2 f}{\partial x_n \partial x_1} &amp; \frac{\partial^2 f}{\partial x_n \partial x_2} &amp; \cdots &amp; \frac{\partial^2 f}{\partial x_n^2}
 \end{pmatrix}$$`
+- 최적화 기법 중 Gauss-Newtion method에서는 Jacobian을 이용해서 Hessian을 근사
+`$$\mathbf{H} \approx \mathbf{J}^\top \mathbf{J}$$`
 
----
+&lt;!-- ---
 # Extended Kalman Filter - 1st order approximation
 - 수식으로 보면 아래와 같이 쓸 수 있음
   - Gradient
 `$$f(\mathbf{x}) \approx f(\mathbf{x}_0) + \nabla f(\mathbf{x}_0)(\mathbf{x} - \mathbf{x}_0)$$`
   - Jacobian
-`$$\mathbf{f}(\mathbf{x}) \approx \mathbf{f}(\mathbf{x}_0) + \mathbf{J}(\mathbf{x}_0)(\mathbf{x} - \mathbf{x}_0)$$`
+`$$\mathbf{f}(\mathbf{x}) \approx \mathbf{f}(\mathbf{x}_0) + \mathbf{J}(\mathbf{x}_0)(\mathbf{x} - \mathbf{x}_0)$$` --&gt;
 
+
+---
+# Extended Kalman Filter 
 - EKF에서의 state transition
-$$$$
+- 우리가 알고있는 KF의 motion model
+`$$\mathbf{x}_t = f(\mathbf{x}_{t-1}, \mathbf{u}_t) + \mathbf{w}_t$$`
+
+- EKF에서는, 비선형 시스템 모델이 이전 state의 평균을 기준으로 선형화된다고 가정
+`$$\mathbf{x}_t = f(\mathbf{x}_{t-1}, \mathbf{u}_t) \approx f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \boldsymbol{\epsilon}_t$$`
+
 
 ---
-# Extended Kalman Filter - Gradient, Jacobian, Hessian
+# Extended Kalman Filter 
+- `\(f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t)\)`만 다시 보면,
+`$$f(\mathbf{x}_{t-1}, \mathbf{u}_t) \approx f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1})
+\text{,} \quad \mathbf{J}_t = \frac{\partial f(\mathbf{x}, \mathbf{u}_t)}{\partial \mathbf{x}} \bigg|_{\mathbf{x}=\boldsymbol{\mu}_{t-1}}$$`
+
+`$$f(x) \approx f(x_0) + f'(x_0)(x - x_0) \\
+\text{Taylor series랑 똑같쥬?}$$`
+
+- 그럼, motion model에서의 mean, covariance는?
+  - 이전 state는 정확히 알고있다!(KF에서의 가정)
+`$$\mathbf{x}_{t-1} = \mathcal{N}(\boldsymbol{\mu}_{t-1}, \mathbf{\Sigma}_{t-1}) = \mathcal{N}(0, 0)$$`
 
 ---
-# Extended Kalman Filter - Gradient, Jacobian, Hessian
+# Extended Kalman Filter 
+- 편차들의 합은 결국 0, 즉 선형화된 1st order 항은 삭제
+  - noise도 평균은 0!
+`$$\mathbf{x}_t \approx f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \boldsymbol{\epsilon}_t \\
+\rightarrow \boldsymbol{\bar{\mu}}_t = f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t)$$`
+- 그렇다면, Covariance는?
+`$$\mathbf{x}_t \approx \boldsymbol{\bar{\mu}}_t + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \boldsymbol{\epsilon}_t$$`
+`$$\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t \approx \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \boldsymbol{\epsilon}_t$$`
+`$$\mathbf{\bar{\Sigma}}_t \approx \mathbf{J}_t \mathbf{\Sigma}_{t-1} \mathbf{J}_t^\top + \mathbf{R}_t$$`
+
+---
+# Extended Kalman Filter 
+- Measurement model
+`$$\mathbf{z}_t = h(\mathbf{x}_t) + \boldsymbol{\mathbf{v}}_t \text{,} \quad \boldsymbol{\mathbf{v}}_t \sim \mathcal{N}(0, \mathbf{Q}_t)$$`
+- 함수 `\(h(\mathbf{x}_t)\)`도 예측된 state에서 선형화
+`$$h(\mathbf{x}_t) \approx h(\boldsymbol{\bar{\mu}}_t) + \mathbf{H}_t (\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t) \text{,} \quad \mathbf{H}_t = \frac{\partial h(\mathbf{x}_t)}{\partial \mathbf{x}_t} \bigg|_{\mathbf{x}_t=\boldsymbol{\bar{\mu}}_t}$$`
+`$$\therefore \mathbf{z}_t \approx h(\boldsymbol{\bar{\mu}}_t) + \mathbf{H}_t (\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t) + \mathbf{v}_t$$`
+
+
+
+---
+# Extended Kalman Filter 
+- 이후는 motion model과 크게 다르지 않음
+  - prediction 기준으로의 오차들의 평균은 0이므로, 1st order 항은 삭제
+
+`$$\mathbf{z}_t \approx h(\boldsymbol{\bar{\mu}}_t) + \mathbf{H}_t (\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t) + \mathbf{v}_t$$`
+`$$\rightarrow \boldsymbol{\bar{z}}_t = h(\boldsymbol{\bar{\mu}}_t)$$`
+
+- Covariance를 구하면, 
+`$$\mathbf{\bar{\Sigma}}_{z_t} \approx \mathbf{H}_t \mathbf{\bar{\Sigma}}_{t-1} \mathbf{H}_t^\top + \mathbf{Q}_t$$`
+
+
+
+---
+# Extended Kalman Filter 
+- Kalman Gain과 업데이트도 크게 다르지 않음
+  - Linear system에서의 Kalman gain
+`$$\mathbf{K}_t = \bar{\Sigma}_{x_t}\mathbf{C}_t^\top (\mathbf{Q} + \mathbf{C}_t\bar{\Sigma}_{x_t}\mathbf{C}_t^\top)^{-1}$$`
+  - Non-Linear system에서의 Kalman gain
+`$$\mathbf{K}_t = \mathbf{\bar{\Sigma}}_{z_t} \mathbf{H}_t^\top (\mathbf{H}_t \mathbf{\bar{\Sigma}}_{t-1} \mathbf{H}_t^\top + \mathbf{Q}_t)^{-1}$$`
+
+- 최종 update state
+`$$\boldsymbol{\mu}_t = \boldsymbol{\bar{\mu}}_t + \mathbf{K}_t (\mathbf{z}_t - h(\boldsymbol{\bar{\mu}}_t))$$`
+`$$\mathbf{\bar{\Sigma}}_t \approx (\mathbf{I} - \mathbf{K}_t \mathbf{H}_t) \mathbf{\bar{\Sigma}}_{t-1}$$`
+---
+# Iterative Error State Kalman Filter (IESKF)
+
+
+
+---
+&lt;!-- xaringan::inf_mr('My_research/Road-to-R3LIVE/Road-to-R3LIVE.Rmd') --&gt;
+&lt;!-- pagedown::chrome_print('My_sresearch/Road-to-R3LIVE/Road-to-R3LIVE.html') --&gt;
     </textarea>
 <style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
 <script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>

@@ -67,21 +67,21 @@ count: false -->
   
 ]
     
----
+<!-- ---
 # Notations
 - Scalars, Vectors, Matrices
   - Scalars: $x, y, z$
   - Vectors: $\mathbf{x}, \mathbf{y}, \mathbf{z}$
-  - Matrices: $\mathbf{X}, \mathbf{Y}, \mathbf{Z}$
+  - Matrices: $\mathbf{X}, \mathbf{Y}, \mathbf{Z}$ -->
 
 
 ---
 # Filter-based LiDAR-Inertial Odometry
 - 기존의 IMU Preintegration을 활용하여 최적화를 시도했던 논문들과 달리, Fast-LIO 기반 논문들은 이를 Kalman Filter 기반 방식으로 대체
-- Kalman filter는 **최적화를 하지 않으며**, 매 프레임마다 상태를 업데이트 하는 방식
-- IMU와 LiDAR의 data input을 나누어 사용하고, 각각 Prediction, Correction step에 사용함
-.center.nt-03[
-<img src="fig/graph_KF.png" width="60%">
+- Kalman filter는 factor graph 기반 최적화를 수행하지 않고, 매 프레임마다 상태를 업데이트 하는 방식
+- IMU와 LiDAR의 data를 각각 Prediction, Correction step에 사용함
+.center.nt-02[
+<img src="fig/graph_KF.png" width="55%">
 ]
 
 ---
@@ -100,7 +100,7 @@ count: false -->
 
 ---
 # Kalman Filter - Linear System
-- 여기서 $\mathbf{x}_t$는 시스템의 상태 벡터, $\mathbf{u}_t$는 시스템에 가해지는 제어 입력, $\epsilon_t \sim \mathcal{N}(0, R)$는 시스템 노이즈
+- 여기서 $\mathbf{x}_t$는 state vector, $\mathbf{u}_t$는 control input, $\epsilon_t \sim \mathcal{N}(0, R)$는 noise
 .f-80[
 $$\mathbf{x}_t = 
 \begin{pmatrix} 
@@ -208,24 +208,24 @@ $$\therefore \boldsymbol{\Sigma}_{\mathbf{y}} = \mathbf{A}\,\boldsymbol{\Sigma}\
 ---
 # Kalman Filter - Prediction step
 - 그래서,, previous state와 control input만 가지고 prediction을 해보면
-  - 이전 state에 대해서는 확실히 알고있다고 가정하면, 
+  - 그리고, state에 대해서 **정확히** 알고있다고 가정하면,
 $$\mathbf{x}_{t-1} \sim \mathcal{N}(\boldsymbol{\mu}_{t-1}, \mathbf{0}) \text{,} \quad \boldsymbol{\mu}_{t-1} = \mathbf{x}_{t-1}$$
   - 정확한 이전 state를 기준으로 선형변환이 가해진다고 가정하면, 선형변환된 **평균**을 알 수 있음
-$$\mathbf{\hat{\mu}_x}_t = \mathbf{A}_t \mathbf{x}_{t-1} + \mathbf{B}_t \mathbf{u}_t$$
+$$\mathbf{\bar{\mu}_x}_t = \mathbf{A}_t \mathbf{x}_{t-1} + \mathbf{B}_t \mathbf{u}_t$$
   - 여기에, motion/process noise를 고려하면, 다음과 같이 **공분산** 계산가능
-$$\boldsymbol{\epsilon}_t \sim \mathcal{N}(0, \mathbf{R}) \text{,} \quad \hat{\Sigma}_t = \mathbf{A}_t 0 \mathbf{A}_t^\top +  \mathbf{R} =  \mathbf{R}$$
+$$\boldsymbol{\epsilon}_t \sim \mathcal{N}(0, \mathbf{R}) \text{,} \quad \bar{\Sigma}_t = \mathbf{A}_t 0 \mathbf{A}_t^\top +  \mathbf{R} =  \mathbf{R}$$
+ - 따라서, 다음 state $\mathbf{x}_t$는 선형변환된 평균과 motion/process noise를 반영하여 표현 가능 
+$$\mathbf{x}_t = \mathbf{\bar{\mu}_x}_t + \boldsymbol{\epsilon}_t = \mathbf{A}_t \mathbf{x}_{t-1} + \mathbf{B}_t \mathbf{u}_t + \boldsymbol{\epsilon}_t$$
 
 
 ---
 # Kalman Filter - Prediction step
-- 따라서, 다음 state $\mathbf{x}_t$는 선형변환된 평균과 motion/process noise를 반영하여 표현 가능
-$$\mathbf{x}_t = \mathbf{\hat{\mu}_x}_t + \boldsymbol{\epsilon}_t = \mathbf{A}_t \mathbf{x}_{t-1} + \mathbf{B}_t \mathbf{u}_t + \boldsymbol{\epsilon}_t$$
-      
-- 확률관점에서 다시 정리해보면, 다음 state는 prediction mean 주변에 있을 가능성이 가장 높고, 그 불확실성은 covariance로 표현
+
+- 확률관점에서 정리해보면, 다음 state는 prediction mean 주변에 있을 가능성이 가장 높고, 그 불확실성은 covariance로 표현
 .nl-03[
 $$p(\mathbf{x}_t | \mathbf{x}_{t-1}, \mathbf{u}_t) = \eta \exp\left\{-\frac{1}{2}(\mathbf{x}_t-(\mathbf{A}_t\mathbf{x}_{t-1}+\mathbf{B}_t\mathbf{u}_t))^\top \mathbf{R}^{-1}(\mathbf{x}_t-(\mathbf{A}_t\mathbf{x}_{t-1}+\mathbf{B}_t\mathbf{u}_t))\right\}$$
-$$p(\mathbf{x}_t) \triangleq  p(\mathbf{x}_t | \mathbf{x}_{t-1}, \mathbf{u}_t) = \eta \exp\left\{-\frac{1}{2}(\mathbf{x}_t-\hat{\mu}_{x_t})^\top 
-\hat{\Sigma}_{x_t}^{-1}(\mathbf{x}_t-\hat{\mu}_{x_t})\right\}$$
+$$p(\mathbf{x}_t) \triangleq  p(\mathbf{x}_t | \mathbf{x}_{t-1}, \mathbf{u}_t) = \eta \exp\left\{-\frac{1}{2}(\mathbf{x}_t-\bar{\mu}_{x_t})^\top 
+\bar{\Sigma}_{x_t}^{-1}(\mathbf{x}_t-\bar{\mu}_{x_t})\right\}$$
 
 ]
 

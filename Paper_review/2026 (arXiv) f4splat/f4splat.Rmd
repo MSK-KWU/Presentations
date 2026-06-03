@@ -1,0 +1,341 @@
+---
+title: "F4Splat: Feed-Forward Predictive Densification for Feed-Forward 3D Gaussian Splatting"
+subtitle: "2026 (arXiv)"
+author: |
+  <span style="font-size: 70%;">
+  Injae Kim<sup style="color: #FFD700;">1</sup><sup style="color: gray;"></sup>, 
+  Chaehyeon Kim<sup style="color: #FFD700;">1</sup><sup style="color: gray;"></sup>, 
+  Minseong Bae<sup style="color: #FFD700;">1</sup><sup style="color: gray;"></sup>, 
+  Minseok Joo<sup style="color: #87CEEB;">2</sup><sup style="color: gray;"></sup>, 
+  and Hyeonwoo J. Kim<sup style="color: #FFD700;">1</sup><sup style="color: gray;"></sup>
+
+  <br><br>
+  <span style="font-size: 65%;">
+  <sup style="color: #FFD700;">1</sup> KAIST<br>
+  <sup style="color: #87CEEB;">2</sup> Korea University<br>
+  </span>
+  <br>
+
+  <span style="font-size: 88%; color: #7A7A7A;">Computer Vision and Robotics Lab</span>
+
+  <span style="font-size: 100%; color: #8A8A8A;"><b style="color: #5A5A5A;">Minsu Kim</b></span><br>
+  </span>
+date: 2026.06.04
+
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css:
+      - default
+      - default-fonts
+      - swan/swan.css
+      - swan/tachyons_ext.css
+      - logo-bottom-right.css
+    includes:
+      after_body: logo-bottom-right.html
+    nature:
+      highlightStyle: github  
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: '16:9'
+  pdf_document:
+    latex_engine: xelatex
+
+    
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE, warning = FALSE, message = FALSE)
+```
+
+<!-- class: title-slide
+count: false -->
+# Contents
+
+.contents-list[
+1. Introduction
+2. Related Work
+3. Method
+4. Experiments
+5. Conclusion
+]
+
+---
+# Introduction
+- 3D Reconstruction, 또는 NVS(Novel View Synthesis) 분야에서, NeRF를 이어 3DGS가 등장했는데, scene densification을 주로 ADC(Adaptive Density Control)로 해결
+  - Densification 관점에서는 좋지만, 최적화를 통해 지속적으로 복제, 분할, 제거를 수행해야 함
+      - 연산도 연산이지만, 불필요하게 Gaussian이 많아질 수 있음
+- 따라서, 정확한 Prior를 예측해서 ADC의 역할 자체를 줄여보자는 아이디어가 feed-forward 3DGS 계열의 main 아이디어
+  - 대부분 pixel-to-Gaussian으로 Gaussian을 생성하는데, 효율적이지 못함
+      - 넓은 부분은 하나로만 해도 되는데, pixel마다 다 만들기 때문
+- 따라서, Anysplat 같이 voxel의 크기를 조절하여 효율성을 높이도록 함
+  - 하지만, Anysplat은 voxel의 크기를 조절할 뿐, 여전히 voxel 내에선 uniform하게 Gaussian을 생성
+
+---
+# Introduction
+- 앞서 언급한 문제들을 다루고자 f4splat을 제안
+- Uncalibrated image로부터 3DGS를 예측하는 feed-forward 3DGS 방법
+- 제한된 Budget 내에서, densification score를 기반으로 non-uniform하게 Gaussian을 생성
+  - Densification score를 통해 non-uniform하게 Gaussian을 생성하여 효율성을 높임
+      - 진짜 필요한 부분에만 Gaussian 만들도록!
+
+---
+# Related Work
+- NeRF 계열은 neural scene representation의 기본 흐름을 만들었지만, 
+per-ray volumetric rendering 때문에 계산 비용이 큼; 그래서 더 빠른 대안으로 3DGS가 등장
+- 3DGS는 3D Gaussian primitive + differentiable rasterization으로 장면을 표현해서, NeRF보다 빠른 최적화와 실시간 렌더링이 가능
+  - ADC로 부족한 영역에는 Gaussian을 추가하고, 기여도 낮은 Gaussian은 제거
+- 기존 3DGS의 한계는 dense-view와 per-scene iterative optimization이다. 안정적인 재구성을 위해 많은 입력 view가 필요하고 매 장면마다 최적화를 다시 해야 해서 실용적으로 부담이 큼
+- 위의 문제를 해결하기 위해 Feed-forward 3DGS는 이 문제를 줄이기 위해 등장 
+  - 대규모 데이터셋에서 prior를 학습해두고, 새로운 장면에서는 **iterative optimization 없이** 한 번의 forward pass로 Gaussian을 예측 
+  - 초기에는 calibrated input을 가정했고, 이후 pose-free, self-supervised pose-free, uncalibrated setting으로 발전
+
+---
+# Related Work
+
+- 하지만 기존 feed-forward 3DGS는 Gaussian allocation이 비효율적임 
+  - 대부분 pixel 또는 voxel마다 고정된 수의 Gaussian을 배치하기 때문에 단순한 영역에는 중복이 생기고, 복잡한 영역에는 부족해짐 
+- 이 문제를 다룬 대표적인 논문이 **AnySplat**
+  - Voxel 크기로 Gaussian 수를 조절하지만 여전히 **uniform allocation**이고 budget 변경 시 재학습 필요
+- 따라서, F4Splat은 budget-aware densification score로 non-uniform, spatially adaptive allocation을 하겠다는 것!
+
+---
+# Method
+.center[
+  <img src=fig/fig_2.png width=80%>
+]
+
+---
+# Method - Problem Formulation
+- 입력 context image $N_{ctx}$가 주어졌을 때, **기존의 feed-forward 3DGS 방법들**은 pixel마다 Gaussian 생성
+$$\{\mathbf{I}^{ctx}_i\}^{N_{ctx}}_{i=1} \text{,} \quad \mathbf{I}^{ctx}_i \in \mathbb{R}^{3 \times H \times W } \text{,} \quad 
+N^{ctx}_{i=1}HW$$
+- **F4Splat**에서는, 각 pixel마다 Gaussian을 생성하는 대신, **densification score**를 예측해서 non-uniform하게 Gaussian을 생성
+  - target budget도 입력으로 받아 최대 Gaussian 수를 조절할 수 있도록 함
+  - 최종 출력은 Gaussian primitive $\quad\mathcal{G} = \{\mathbf{g}_g\}_{g=1}^{N_\mathcal{G}}$와 camera parameter $\{\hat{\mathbf{P}}^{N_{ctx}}_{i=1}\}$로 구성된 set
+$$(\{\mathbf{g}_g\}_{g=1}^{N_\mathcal{G}}\text{,} \; \{\mathbf{\hat{P}}^{N_{ctx}}_{i=1}\}) = \mathbf{F}_\theta(\{\mathbf{I}^{ctx}_{i=1}, \bar{N}_\mathcal{G})$$  
+
+---
+# Method - Problem Formulation
+- 각 Gaussian $\mathbf{g}_g \in \mathbb{R}^{d_{\mathcal{G}}}$는 center, opacity, quaternion, scale, SH coefficient로 구성
+$$\boldsymbol{\mu}_g \in \mathbb{R}^{3}\text{,}\; \sigma_g \in \mathbb{R} \text{,}\; \mathbf{q}_g \in \mathbb{R}^{4}\text{,}\; \mathbf{s}_g \in \mathbb{R}^{3}\text{,}\; \mathbf{h}_g \in \mathbb{R}^{\mathcal{V}}$$
+- 각 Camera parameter는 intrinsic, extrinsic으로 구성
+  - $\hat{\mathbf{K}}^{ctx}_i$ 내부의 focal lenght는 $\hat{f}^{ctx}_i$
+$$\hat{\mathbf{P}}^{ctx}_i = (\hat{\mathbf{K}}^{ctx}_i\text{,} \hat{\mathbf{T}}^{ctx}_i)$$
+- 그리고, $\hat{(\cdot)}$, hat이 붙은 모든 변수들은 network prediction임
+
+
+---
+# Method - Spatially Adaptive Gaussian Allocation
+.pull-left[
+- Multi-view image set을 받아 Geometry backbone이 camera parameter 예측
+- Gaussian Center head와 parameter head는 각각 Gaussian의 center, 그리고 나머지 parameter를 예측
+  - 여기서 densification score도 예측해서, non-univorm하게 Gaussian을 생성하도록 함
+
+]
+
+.pull-right[
+  <img src=fig/fig_2_front.png width=100%>
+]
+
+
+---
+# Method - Spatially Adaptive Gaussian Allocation
+### Geometry backbone
+- Image를 input으로 받아, DINO V2 encoder로 token 추출
+- 이후 학습 가능한 Camera parameter, register token을 concat하여 VGGT 입력 준비
+  - 1번째 image를 reference로 하여 token을 따로 두고, 나머지 token은 우선 other token으로 둠
+.nt-02.center[
+<img src=fig/geo_backbone_front.png width=90%>
+]
+
+---
+# Method - Spatially Adaptive Gaussian Allocation
+
+- 정리한 Token들을 self, global attention layer로 구성된 VGGT-like? 구조에 넣어서 각 token 업데이트
+  - 반복적으로 수행할텐데, VGGT를 따랐다면 24번 반복해서 최종 token $\tilde{\mathbf{t}}_i^{ctx}$ 출력
+- 여기서 Camera parameter token만 따로 4개 추가 self-attention layer에 넣어서 최종 
+camera parameter $\hat{\mathbf{P}}^{ctx}_i$ 예측
+.nt-02.center[
+<img src=fig/geo_backbone_back.png width=90%>
+]
+
+
+---
+# Method - Spatially Adaptive Gaussian Allocation
+### Multi-Scale Prediction
+- VGGT의 output token 중, Image token $\mathbf{t}^{\mathbf{I}}_i$을 각각 Gaussian center, Gaussian parameter head에 넣음
+.nt-01.center[
+<img src=fig/geo_backbone_dpt.png width=75%>
+]
+
+---
+# Method - Spatially Adaptive Gaussian Allocation
+ - 다만, 여기서 output으로 나오는 $\mathbf{G}_i$와 $\hat{\mathbf{D}}_i$가 하나는 아님
+    - Multi-scale이기 때문에, 각각  $\{\mathbf{G}_i\}^{L}_{l = 1}$와 $\hat{\mathbf{D}}_i^{L-1}$로 나옴(L = 3)
+        - 각 level 마다의 resolution
+    $$l = 1 : (\frac{H}{4}\text{,} \frac{W}{4})\text{,} \quad l = 2 : (\frac{H}{2}\text{,} \frac{W}{2})\text{,} \quad l = 3 : (H\text{,} W)$$
+
+.nt-01.center[
+<img src=fig/dpt_decoder.png width=100%>
+]
+
+
+---
+# Method - Spatially Adaptive Gaussian Allocation
+- 전체 Gaussian의 개수 $N_{\mathcal{G}}$
+$$N_{ctx}H^1W^1 \leq N_{\mathcal{G}} \leq N_{ctx}H^3W^3$$
+$$\rightarrow \frac{N_{ctx}HW}{16} \leq N_{\mathcal{G}} \leq N_{ctx}H^3W^3$$
+
+
+---
+# Method - Spatially Adaptive Gaussian Allocation
+- 각 레벨마다 Gaussian 후보도 알았고, densification score도 얻었으니, 어떤 레벨에서 몇 개의 Gaussian을 생성할지 결정하면 됨
+- 기하학적으로, photometric적으로도 더 복잡한 부분에 Gaussian이 많이 할당되어야 함 
+  - 아래수식을 통해 각 level 마다 Gaussian을 할당 
+$$\mathcal{M}_{\tau,i}^{l} = 
+\begin{cases} 
+\mathbf{1}_{\{\hat{\mathbf{D}}_i^l < \tau\}} & \text{if } l = 1, \\
+\mathbf{1}_{\{\hat{\mathbf{D}}_i^l < \tau\}} \odot \left( \mathbf{1} - \sum_{k=1}^{l-1} \text{Up}(\mathcal{M}_{\tau,i}^{l-k}; 2^k) \right) & \text{if } 1 < l < L, \\
+\mathbf{1} - \sum_{k=1}^{l-1} \text{Up}(\mathcal{M}_{\tau,i}^{l-k}; 2^k) & \text{if } l = L,
+\end{cases}$$
+- 최종 Gaussian의 개수
+.nt-01[
+$$N_{\mathcal{G}_\tau} = \sum_{l,i} \|\mathcal{M}_{\tau,i}^l\|_1$$
+]
+
+---
+# Method - Spatially Adaptive Gaussian Allocation
+- Adaptive Gaussian Allocation을 위해 설정한 budget에 따라 다른 threshold $\tau$를 선택
+  - $\tau$가 높을수록 fine 단계에서의 Gaussian이 많이 생성되기 때문!
+- 아래 식으로, 사용자가 정한 budget이상 Gaussian이 생성되지 않도록!
+$$0 \leq \bar{N}_\mathcal{G} - N_{\mathcal{G}_\tau} \leq 4^{L-1} - 1$$
+- 풀어보면, 아무리 부족해도 15개 이상 차이나지 않도록 $\tau$를 조절
+
+---
+# Method - Spatially Adaptive Gaussian Allocation
+.center[
+  <img src=fig/budget_matching_algo.png width=66%>
+]
+
+
+---
+# Method - Training strategy
+### Feed-Forward Predictive Densification
+- 본 논문에서 중요하게 생각하는 성질 두가지
+  -  **품질향상**을 고려해야함; 복잡한 곳에 더 많은 Gaussian을 할당할 수 있어야 함
+  - Iterative optimization을 요구하지 않고, **inference time에 바로바로 사용** 할 수 있어야 함;
+        - Densification score는 input image만 가지고 잘 계산되어야 한다..!
+- 역설적이게도, ADC로부터 영감을 얻어 3DGS primitive들을 반복적으로 최적화함
+- Inference 시에 optimization을 하면 loss를 미분해서 업데이트 하면 되지만, feed-forward에서는 optimization이라는 게 없다.
+  - 그래서 **Training time에 rendering loss를 구해서** densification score를 조절하는 방식으로 
+---
+# Method - Training strategy
+.pull-left[
+- AbsGS논문에서 했던 방식을 잠시 살펴보면...
+  - 예측된 Gaussian을 랜더링하여 GT image와 rendered image간의 
+    MSE와 LPIPS loss를 구함 그것이 $\mathcal{L}_{\text{render}}$
+- $\mathcal{L}_{\text{render}}$를 이용하여 **homodirectional view-space gradient vector** 계산
+$$\mathbf{v}_g = \left( \sum_{j=1}^{m} \left| \frac{\partial \mathcal{L}_j^{render}}{\partial \bar{\boldsymbol{\mu}}_{g,x}} \right|, \sum_{j=1}^{m} \left| \frac{\partial \mathcal{L}_j^{render}}{\partial \bar{\boldsymbol{\mu}}_{g,y}} \right| \right)$$
+
+]
+
+.pull-right.nr-08.nt-05[
+  <img src=fig/fig_4.png width=80%>
+]
+
+
+---
+# Method - Training strategy
+- 이게 도대체 무슨 이야기인고 하니...
+- 앞서 설명했던 AbsGS 방식대로 하게되면, $\mathbf{v}_g$의 크기를 구함
+  - 결국, gradient의 크기가 크다는 것은 gaussian이 불안정한 것이고, densification이 더 되어야 한다는 뜻
+  - 더 문제는, feed-forward 방식에서 GT image라는건 존재하지 않음..!
+- 그래서, training time에 **densification score를 예측**할 때 사용한다!
+  - Network가 densification score를 통해 간접적으로 gradient를 사용한 학습하도록 하는 것!
+  $$d_g = \log (1 + 10^4 \cdot \| \mathbf{v}_g \|_2)$$
+  - 이 $d_g$를 정답 score라고 생각!
+
+
+---
+# Method - Training strategy
+- 따라서, MLP가 densification score도 예측하는데(gaussian param head에서), 예측값과 $\mathbf{v}_g$라고 생각한 값을 사용하여 학습
+$$\mathcal{L}_{\mathcal{G}}^{\text{score}} = \mathbb{E}_{\mathbf{g}_g \in \mathcal{G}} \left[ \| \hat{d}_g - d_g \|_1 \right]$$
+
+- 결국, training 시에 densification score가 inference 시에 Gaussian allocation에 영향을 주는데, 
+feed-forward의 optimization이 없는 상황에서도 Gaussian이 필요한 곳에 더 많이 할당되도록 학습
+
+---
+# Method - Training Novel views
+- 3DGS Training에서 항상 issue가 되어왔던 것은, GT pose에서만 학습을 하기 때문에,,,
+  - GT pose에 대해서만 랜더링 하고, 그 loss를 이용해 학습하기 때문에 overfitting 가능성 증가
+  - Novel view에서 보면 랜더링 품질저하
+- 따라서, **진짜 novel view pose에서의 rendering loss**를 구해서 학습하도록 함
+  - 먼저, GT space에서 predicted space $\mathbf{A} \in Sim(3)$를 추정함
+      - 이 때, target view(novel view)의 가장 가까운 2개의 GT image의 pose와, 해당하는 frame에서 prediction한 image pose끼리의 변환을 추정
+      - 변환된 결과 $\mathbf{A}$를 GT에 곱해서 predicted pose $\hat{\mathbf{T}}^{tgt}$ 추정
+        $$\hat{\mathbf{T}}^{tgt} = \mathbf{A}\mathbf{T}^{tgt}$$
+
+---
+# Method - Training Novel views
+- Camera parameter 중 pose는 완료했고 마지막으로 intrinsic parameter(focal length)
+  - Focal length는 가장 가까운 view의 GT와 predicted  focal length의 비율로 맞추어 계산
+  $$\frac{\hat{f}^{ctx}_{n1}}{f^{ctx}_{n1}}$$ 
+- 최종 target focal length
+  
+.nt-02[
+  $$\hat{f}^{tgt} = \frac{\hat{f}^{ctx}_{n1}}{f^{ctx}_{n1}} \cdot f^{tgt}$$
+]
+
+- 따라서, 앞서 예측한 intrinsic, extrinsic을 가지고 rendering 해서 Novel view를 trainning에 사용!
+---
+# Method - Overall training pipeline
+- Inference 때는 최대 budget을 설정하면 되지만, training 시에는 다양한 budget으로 학습해야 overfitting을 피할 수 있음
+  - 따라서, random하게 $\tau$ 를 샘플링하여 학습
+- 해당하는 threshold를 통과한 gaussian들을 가지고 랜더링해서 학습
+  - $\mathcal{L}_{camear}$는 VGGT와 같이 학습, camera가 예측한 camera parameter를 Huber cost function을 씌워 최적화
+  - $\mathcal{L}^{\text{scene}}$는 scene의 크기가 되도록 1이 되게끔 $\left| \frac{1}{|\mathcal{G}|} \sum_{\mathbf{g}_g \in \mathcal{G}} \| \boldsymbol{\mu}_g \|_2 - 1 \right|$ 
+  로 normalization
+$$\mathcal{L}_{total} = \mathcal{L}_{render} + \mathcal{L}_{score} + \mathcal{L}_{camera} + \mathcal{L}_{scene}$$
+$$ $$
+
+---
+# Experiments
+.center[
+   <img src=fig/fig_1.png width=80%>
+]
+
+---
+# Experiments
+.center.nt-03[
+   <img src=fig/fig_3.png width=70%>
+]
+
+---
+# Experiments
+.center.nt-03[
+   <img src=fig/tab_1.png width=70%>
+   <img src=fig/tab_2.png width=70%>
+]
+
+---
+# Experiments
+.center[
+   <img src=fig/tab_3_4.png width=100%>
+]
+
+
+
+---
+# Conclusion
+
+- Feed-forward 3DGS의 기존 문제들을 다룬 논문
+  - Optimization이 되지 않아 ADC를 사용할 수 없어서 densification의 한계를 극복
+  - pixlwise gaussian initialization으로 의미없거나, 과도하게 생성되는 Gaussian을 억제
+- Densification 단계에서 기존의 3DGS optimization의 효과와 novel view에서의 평가를 반영한 모델 학습
+- Transformer 계열 SLAM에서 중요한 역할을 할 수 있을 듯
+
+
+<!-- xaringan::inf_mr('Paper_review/2026 (arXiv) f4splat/f4splat.Rmd') -->
+<!-- pagedown::chrome_print('Paper_review/2026 (arXiv) f4splat/f4splat.html') -->
+

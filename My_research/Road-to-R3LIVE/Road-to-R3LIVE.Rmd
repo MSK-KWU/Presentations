@@ -562,11 +562,296 @@ $$\mathbf{K}_t = \mathbf{\bar{\Sigma}}_{z_t} \mathbf{H}_t^\top (\mathbf{H}_t \ma
 - 최종 update state
 $$\boldsymbol{\mu}_t = \boldsymbol{\bar{\mu}}_t + \mathbf{K}_t (\mathbf{z}_t - h(\boldsymbol{\bar{\mu}}_t))$$
 $$\mathbf{\bar{\Sigma}}_t \approx (\mathbf{I} - \mathbf{K}_t \mathbf{H}_t) \mathbf{\bar{\Sigma}}_{t-1}$$
----
-# Iterative Error State Kalman Filter (IESKF)
-
-
 
 ---
+# Iterated Error State Kalman Filter (IESKF)
+- Iterated Kalman filter의 한 종류로 볼 수 있음
+  - FAST-LIO에서는 IKF라는 표현을 사용했음
+- 기존의 KF, EKF와 다른 점 
+  1. State가 추정하고자 하는 $\mathbf{X}$를 직접 update 하지 않고, **error-state**를 추정하고, 이를 state에 더하는 방식
+$$\mathbf{X} =  \mathbf{X} + \delta\mathbf{X}$$
+  2. Iterative하게 추정값을 계속해서 업데이트 함. residual과 그 Jacobian을 계산해서, EKF의 correction step에서 non-linear optimization을 푸는 듯한 느낌.
+      - Optimization 기법 중 **Gauss-Newton**과 매우 흡사하다.
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+### State vs. Residual
+
+.pull-left[
+#### Kalman Filter
+- EKF는, State $\mathbf{X}$에 대해, motion, observation 모델을 1차 선형화하여 state를 업데이트 하는 방식
+- IKF(IESKF)는, residual $\mathbf{e}$를 줄이는 error-state를 **반복해서** 추정하고, State에 최종 error-state를 더해 다음 State를 업데이트 하는 방식 
+]
+
+.pull-right[
+#### Non-linear optimization
+- Newton method는, 최적화하고자 하는 함수 $\mathbf{f(x)}$에 대해 2차 근사를 통한  최적화
+- Gauss-Newton method는, error를 1차항으로 선형화하여 최적화를 수행, 2차항은 $\mathbf{J}^\top\mathbf{J}$로 근사하여 사용
+]
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+- 그렇다면, IESKF에 대해서 하나씩알아보자.
+  - 지금부터는 FAST-LIO2의 논문에 나와있는 대로 가 봅시다.
+- 먼저, 연산 방식에 대해서 짚고 넘어가도록 하자.
+$$\begin{aligned}
+\boxplus &: \mathcal{M} \times \mathbb{R}^{n} \rightarrow \mathcal{M};
+\qquad
+\boxminus : \mathcal{M} \times \mathcal{M} \rightarrow \mathbb{R}^{n}
+\\[0.8em]
+\mathrm{SO}(3) &: 
+\mathbf{R} \boxplus \mathbf{r}
+=
+\mathbf{R}\mathrm{Exp}(\mathbf{r});
+\qquad
+\mathbf{R}_{1} \boxminus \mathbf{R}_{2}
+=
+\mathrm{Log}\left(\mathbf{R}_{2}^{T}\mathbf{R}_{1}\right)
+\\[0.8em]
+\mathbb{R}^{n} &: 
+\mathbf{a} \boxplus \mathbf{b}
+=
+\mathbf{a}+\mathbf{b};
+\qquad
+\mathbf{a} \boxminus \mathbf{b}
+=
+\mathbf{a}-\mathbf{b}
+\end{aligned}$$
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+### Special Orthogonal group
+- 먼저, Rotation을 표현하는 여러가지 방법이 있는데, 그 중에서 Rotation matrix의 몇가지 성질을 정리하면 아래와 같다
+  - Rotation matrix는 Special Orthogonal group에 속함 
+$$\mathbb{R}\in \mathrm{SO}(n)$$
+  - Special Orthogonal group의 성질
+$$\mathrm{SO}(n) = \{\mathbf{R} \in \mathbb{R}^{n \times n} | \mathbf{R}^\top \mathbf{R} \text{,} \quad \mathrm{det}(\mathbf{R} = 1) \}$$ 
+$$\mathbf{R} + \Delta \mathbf{R} \neq \mathrm{SO}(n)$$
+- 따라서, tangent space로의 변환으로 linear 한 변환을 추정하고, 다시 복구해야 함
+
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+### Exponential & Logarithm map
+
+.pull-left[
+- 기존 Rotation matrix는 Transformation matrix $\mathbf{T} \in \mathrm{SE}(3)$ 내부의 $\mathbf{R} \in \mathrm{SO}(3)$
+- $\mathrm{SO}(3)$에서의 직접적인 변환은 비선형이기 때문에, tangent space인 $\mathfrak{so}(3)$에서 선형변화를 통해 변환할 수 있음
+  - 이 변환을 다시 $SE(3)$로 변환하는 과정이 **Exponential mapping**!  
+- 결국, $\delta \phi$를 추정하는 문제로 풀 수 있다
+]
+
+.pull-right.mt-03[
+<img src="fig/so3_on_manifold.png" width="100%">
+]
+
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+
+.pull-left[
+- Exponential mapping은 결국 Rodrigus' formula로 정리할 수 있는데, 이를 증명해보자.
+$$\color{#7CFC00}{\mathbf{p}} = \color{#7CFC00}{\mathbf{p}_\perp} + \color{blue}{\mathbf{p}_\parallel} \text{,} \quad 
+\color{navy}{\mathbf{p'}} = \color{navy}{\mathbf{p'}_\perp} + \color{blue}{\mathbf{p}_\parallel}$$
+$$\left\lVert \hat{\mathbf{u}} \times \color{#7CFC00}{\mathbf{p}_{\perp}}\right\rVert = \left\lVert\color{#7CFC00}{\mathbf{p}_{\perp}}\right\rVert = \left\lVert \mathbf{\hat{n}}\right\rVert$$
+$$\therefore \color{navy}{\mathbf{p'}_\perp} = \color{#7CFC00}{\mathbf{p}_{\perp}}\cos\theta  + \hat{\mathbf{n}}\sin\theta$$
+]
+
+.pull-right[
+<img src="fig/rotation-axis.png" width="100%">
+]
+
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+- 왜요? 진짜맞음? 대충보면 틀린거같은데
+  - 저도 그런줄 알았습니다. 근데 맞더라구요.
+- 일단, 각 성분을 더하려고 하면, projection의 개념이 필요
+  - $\color{navy}{\mathbf{p'}_\perp}$ 를  $\color{#7CFC00}{\mathbf{p}_\perp}$ 방향으로 projection 하는 것은
+$$\color{navy}{\mathbf{p'}_\perp}^\top\color{#7CFC00}{\mathbf{p}_{\perp}} = \|\color{navy}{\mathbf{p'}_\perp} \| \| \color{#7CFC00}{\mathbf{p}_\perp}\| \cos\theta$$
+  - Projection matrix는 외적을 내적으로 나눔으로써 정의할 수 있고, 이를 이용하면
+$$\mathrm{Proj}_\color{#7CFC00}{\mathbf{p}_{\perp}} = \frac{\color{#7CFC00}{\mathbf{p}_{\perp}{\color{#7CFC00}{\mathbf{p}_{\perp}^\top}}}}
+{{\color{#7CFC00}{\mathbf{p}_{\perp}^\top}}{\color{#7CFC00}{\mathbf{p}_{\perp}}}} \quad 
+\therefore \mathrm{Proj}_\color{#7CFC00}{\mathbf{p}_{\perp}}\color{navy}{\mathbf{p'}_\perp} = 
+\frac{\color{#7CFC00}{\mathbf{p}_{\perp}{\color{#7CFC00}{\mathbf{p}_{\perp}^\top}}}}
+{{\color{#7CFC00}{\mathbf{p}_{\perp}^\top}}{\color{#7CFC00}{\mathbf{p}_{\perp}}}}\color{navy}{\mathbf{p'}_\perp} = 
+\frac{\color{navy}{\mathbf{p'}_\perp}^\top\color{#7CFC00}{\mathbf{p}_{\perp}}}
+{{\color{#7CFC00}{\mathbf{p}_{\perp}^\top}}{\color{#7CFC00}{\mathbf{p}_{\perp}}}}\color{#7CFC00}{\mathbf{p}_{\perp}} = 
+\frac{\|\color{navy}{\mathbf{p'}_\perp} \| \| \color{#7CFC00}{\mathbf{p}_\perp}\| \cos\theta}
+{\|\color{#7CFC00}{\mathbf{p}_{\perp}}\|^2}\color{#7CFC00}{\mathbf{p}_{\perp}}$$
+- 따라서 $\color{navy}{\mathbf{p'}_\perp}$의 성분 중 하나는 $\color{#7CFC00}{\mathbf{p}_\perp} \cos\theta$ 로 정리할 수 있음!
+  - 나머지도 해보면 똑같음. 방향만 $\sin$ 쪽일 뿐!
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+
+.pull-left[
+- 그래서 이 수식이 증명이 되는것
+$$\color{navy}{\mathbf{p'}_\perp} = \color{#7CFC00}{\mathbf{p}_{\perp}}\cos\theta  + \hat{\mathbf{n}}\sin\theta$$
+- 다시 써보면,
+$$\color{navy}{\mathbf{p'}_\perp} = \color{#7CFC00}{\mathbf{p}_{\perp}}\cos\theta  + (\mathbf{\hat{u}} \times \color{#7CFC00}{\mathbf{p}_{\perp}})\sin\theta$$
+
+]
+
+.pull-right[
+<img src="fig/rotation-axis.png" width="100%">
+]
+
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+<!-- - 우리가 원하는 회전된 벡터 $\color{navy}{\mathbf{p}}$ 는
+$$\color{navy}{\mathbf{p'}} = \color{blue}{\mathbf{p}_\parallel} + \color{navy}{\mathbf{p'}_\perp} = \color{#7CFC00}{\mathbf{p}_{\perp}}\cos\theta  + (\mathbf{\hat{u}} \times \color{#7CFC00}{\mathbf{p}_{\perp}})\sin\theta$$ -->
+- 증명을 위해, Cross product의 성질을 이용하면 아래와 같이 정리 가능
+$$\mathbf{\hat{u}} \times \color{#7CFC00}{\mathbf{p}} = \mathbf{\hat{u}} \times (\color{blue}{\mathbf{p}_\parallel} + \color{#7CFC00}{\mathbf{p}_{\perp}})
+= (\mathbf{\hat{u}} \times \color{blue}{\mathbf{p}_\parallel}) + (\mathbf{\hat{u}} \times \color{#7CFC00}{\mathbf{p}_{\perp}}) = \mathbf{\hat{u}} \times \color{#7CFC00}{\mathbf{p}_{\perp}} 
+\text{, } \quad \color{blue}{\mathbf{p}_\parallel} = \mathbf{\hat{u}}\mathbf{\hat{u}}^\top\color{#7CFC00}{\mathbf{p}}$$
+- 따라서, 아래와 같이 다시 쓸 수 있게 됨
+$$\color{navy}{\mathbf{p'}_\perp} = \color{#7CFC00}{\mathbf{p}_{\perp}}\cos\theta  + (\mathbf{\hat{u}} \times \color{#7CFC00}{\mathbf{p}_{\perp}})\sin\theta$$
+- 회전된 벡터 $\color{navy}{\mathbf{p'}}$ 를 $\color{#7CFC00}{\mathbf{p}}$ 에 대해 정리
+$$\color{navy}{\mathbf{p'}} = \color{blue}{\mathbf{p}_\parallel} + \color{navy}{\mathbf{p'}_{\perp}} = 
+\mathbf{\hat{u}}\mathbf{\hat{u}}^\top\color{#7CFC00}{\mathbf{p}} + 
+\color{#7CFC00}{\mathbf{p}_{\perp}}\cos\theta  + (\mathbf{\hat{u}} \times \color{#7CFC00}{\mathbf{p}_{\perp}})\sin\theta \text{,} \quad 
+\color{#7CFC00}{\mathbf{p}_{\perp}} = \color{#7CFC00}{\mathbf{p}} - \color{blue}{\mathbf{p}_\parallel}$$
+$$\color{navy}{\mathbf{p'}} = 
+\mathbf{\hat{u}}\mathbf{\hat{u}}^\top\color{#7CFC00}{\mathbf{p}} + 
+(\color{#7CFC00}{\mathbf{p}} - \mathbf{\hat{u}}\mathbf{\hat{u}}^\top\color{#7CFC00}{\mathbf{p}})\cos\theta  + (\mathbf{\hat{u}} \times \color{#7CFC00}{\mathbf{p}})\sin\theta$$
+---
+# Iterated Error State Kalman Filter (IESKF)
+- 이 식을 다시 전개해보면,
+$$\color{navy}{\mathbf{p'}} = 
+\mathbf{\hat{u}}\mathbf{\hat{u}}^\top\color{#7CFC00}{\mathbf{p}} + 
+(\color{#7CFC00}{\mathbf{p}} - \mathbf{\hat{u}}\mathbf{\hat{u}}^\top\color{#7CFC00}{\mathbf{p}})\cos\theta  + (\mathbf{\hat{u}} \times \color{#7CFC00}{\mathbf{p}})\sin\theta$$
+$$
+\color{navy}{\mathbf{p'}} =
+\mathbf{\hat{u}}\mathbf{\hat{u}}^\top\color{#7CFC00}{\mathbf{p}}
++
+\color{#7CFC00}{\mathbf{p}}\cos\theta
+-
+\mathbf{\hat{u}}\mathbf{\hat{u}}^\top\color{#7CFC00}{\mathbf{p}}\cos\theta
++
+(\mathbf{\hat{u}} \times \color{#7CFC00}{\mathbf{p}})\sin\theta
+$$
+$$
+\color{navy}{\mathbf{p'}} =
+\color{#7CFC00}{\mathbf{p}}\cos\theta
++
+(\mathbf{\hat{u}} \times \color{#7CFC00}{\mathbf{p}})\sin\theta
++
+\mathbf{\hat{u}}\mathbf{\hat{u}}^\top\color{#7CFC00}{\mathbf{p}}(1-\cos\theta)
+$$
+$$
+\mathbf{\hat{u}}\mathbf{\hat{u}}^\top\color{#7CFC00}{\mathbf{p}}
+=
+\mathbf{\hat{u}}
+\left(
+\mathbf{\hat{u}}^\top\color{#7CFC00}{\mathbf{p}}
+\right)
+$$
+- Rogdirues' Formula!
+$$
+\boxed{
+\color{navy}{\mathbf{p'}} =
+\color{#7CFC00}{\mathbf{p}}\cos\theta
++
+(\mathbf{\hat{u}} \times \color{#7CFC00}{\mathbf{p}})\sin\theta
++
+\mathbf{\hat{u}}
+\left(
+\mathbf{\hat{u}}^\top\color{#7CFC00}{\mathbf{p}}
+\right)
+(1-\cos\theta)
+}
+$$
+
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+- 이걸 matrix form으로 다시 써보면, 
+
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+
+
+- Exponential, Logarithm map을 증명하기 위해서, 먼저 회전 벡터, 그 벡터의 skew-symmetric matrix를 아래와 같이 정의한다.
+$$
+\mathbf{r} = \begin{bmatrix}
+  r_1 \\\\
+  r_2 \\\\
+  r_3
+\end{bmatrix}
+\in \mathbb{R}^3
+\text{, } \quad
+\lfloor \mathbf{r} \rfloor \times= 
+\begin{bmatrix}
+  0   &  -r_3 &   r_2  \\\\ 
+  r_3 &    0  &  -r_1  \\\\
+ -r_2 &   r_1 &   0
+\end{bmatrix}
+\in \mathfrak{so}\text{(3)}
+$$
+
+- Taylor series를 다시 들고와보면, scalar에서의 taylor series를 matrix가지고 해보면
+$$ e^x = 1 + x + \frac{x^2}{2!} + \frac{x^3}{3!} + \cdots $$
+$$\exp(\mathbf{A})=\mathbf{I}+\mathbf{A}+\frac{\mathbf{A}^2}{2!}+\frac{\mathbf{A}^3}{3!}+\frac{\mathbf{A}^4}{4!}+\frac{\mathbf{A}^5}{5!}\cdots$$
+
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+- 근데 이 taylor series를 정리를 해보면, 
+.f-90[
+$$\exp(\mathbf{A})=\mathbf{I}+\mathbf{A}+\frac{\mathbf{A}^2}{2!}+\frac{\mathbf{A}^3}{3!}+\frac{\mathbf{A}^4}{4!}+\frac{\mathbf{A}^5}{5!}\cdots$$
+$$\exp(\mathbf A)=\mathbf{I} +  \left(\frac{\mathbf{A}}{1!}+\frac{\mathbf A^3}{3!}+\frac{\mathbf A^5}{5!}\right) + \left(\frac{\mathbf A^2}{2!}+\frac{\mathbf A^4}{4!}+\cdots\right)+\cdots$$
+- cos, sin 함수를 정리해보면..?
+$$
+\cos\theta
+=
+1-\frac{\theta^2}{2!}
++\frac{\theta^4}{4!}
+-\frac{\theta^6}{6!}
++\cdots
+$$
+$$
+\sin\theta
+=
+\theta
+-\frac{\theta^3}{3!}
++\frac{\theta^5}{5!}
+-\frac{\theta^7}{7!}
++\cdots
+$$
+]
+---
+# Iterated Error State Kalman Filter (IESKF)
+
+
+
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+### left VS right perturbation
+.pull-left[
+- Left perturbation  
+$$\mathrm{Exp}({}^{w}\delta\phi) {}^{b}\mathbf{p}{}^{w}\mathbf{R}_b$$
+- 먼저 world frame으로의 변환을 본 뒤에, world frame에서의 변화 확인!
+$${}^{w}\mathbf{p} = \mathrm{Exp}({}^{w}\delta\phi){}^{w}\mathbf{R}_b {}^{b}\mathbf{p}$$
+]
+
+.pull-right[
+- Right perturbation
+$${}^{w}\mathbf{R}_b\mathrm{Exp}({}^{b}\delta\phi) {}^{b}\mathbf{p}$$
+- body frame에서의 변화를 확인한 뒤에, world frame으로의 변환!
+$${}^{w}\mathbf{p} = {}^{w}\mathbf{R}_b\mathrm{Exp}({}^{b}\delta\phi) {}^{b}\mathbf{p}$$
+]
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+
+- Gauss newton과 뭐가 흡사한지 보자
+- 그러고 난 뒤에, IKF의 프로세스를 정리해보자
+- 여기서부터 FAST LIO2를 입혀서, forward passing과 backward에서 lidar undistortion을 묶어서 설명하고, R3LIVE를 정리하자. 그렇게 끝내자.
+
+  
 <!-- xaringan::inf_mr('My_research/Road-to-R3LIVE/Road-to-R3LIVE.Rmd') -->
 <!-- pagedown::chrome_print('My_sresearch/Road-to-R3LIVE/Road-to-R3LIVE.html') -->

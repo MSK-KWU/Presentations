@@ -763,7 +763,75 @@ $$
 
 ---
 # Iterated Error State Kalman Filter (IESKF)
-- 이걸 matrix form으로 다시 써보면, 
+
+### Vector form to Matrix form
+
+- 앞서 유도한 Rodrigues rotation formula의 vector form은 다음과 같다.
+
+$$
+{\color{navy}{\mathbf{p}^{\prime}}}
+=
+{\color{#7CFC00}{\mathbf{p}}}\cos\theta
++
+\left(
+\hat{\mathbf{u}}\times{\color{#7CFC00}{\mathbf{p}}}
+\right)\sin\theta
++
+\hat{\mathbf{u}}
+\left(
+\hat{\mathbf{u}}^{T}{\color{#7CFC00}{\mathbf{p}}}
+\right)
+(1-\cos\theta)
+$$
+- Cross product와 projection term을 matrix form으로 바꾸면,
+
+`$$\hat{\mathbf{u}}\times{\color{#7CFC00}{\mathbf{p}}} = [\hat{\mathbf{u}}]_{\times}{\color{#7CFC00}{\mathbf{p}}},
+\qquad \hat{\mathbf{u}} \left( \hat{\mathbf{u}}^{T}{\color{#7CFC00}{\mathbf{p}}} \right) = \hat{\mathbf{u}}\hat{\mathbf{u}}^{T} {\color{#7CFC00}{\mathbf{p}}}$$`
+
+`$${\color{navy}{\mathbf{p'}}} = \mathbf{I}{\color{#7CFC00}{\mathbf{p}}}\cos\theta + [\hat{\mathbf{u}}]_{\times}{\color{#7CFC00}{\mathbf{p}}}\sin\theta + \hat{\mathbf{u}}\hat{\mathbf{u}}^{T} {\color{#7CFC00}{\mathbf{p}}} (1-\cos\theta)= \left[ \mathbf{I}\cos\theta + [\hat{\mathbf{u}}]_{\times}\sin\theta
++\hat{\mathbf{u}}\hat{\mathbf{u}}^{T}(1-\cos\theta) \right] {\color{#7CFC00}{\mathbf{p}}}$$`
+$$
+\therefore
+\quad
+{\color{navy}{\mathbf{p}^{\prime}}}
+=
+\mathbf{R}
+{\color{#7CFC00}{\mathbf{p}}}
+$$
+
+$$
+\boxed{
+\mathbf{R}
+=
+\mathbf{I}\cos\theta
++
+[\hat{\mathbf{u}}]_{\times}\sin\theta
++
+\hat{\mathbf{u}}\hat{\mathbf{u}}^{T}(1-\cos\theta)
+}
+$$
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+
+### Rodrigues formula and Exponential map
+
+- 앞서 matrix form으로 바꾼 수식을 조금 더 정리하고자, cross product의 성질을 이용해서 정리해보면,
+
+`$$[\hat{\mathbf{u}}]_{\times}^{2}=\hat{\mathbf{u}}\hat{\mathbf{u}}^{T}-\mathbf{I}
+\text{,} \quad
+\hat{\mathbf{u}}\hat{\mathbf{u}}^{T}
+= \mathbf{K}^{2} + \mathbf{I}$$`
+
+- 이를 Rodrigues rotation matrix에 대입하면,
+
+`$$\mathbf{R}=\mathbf{I}\cos\theta + [\hat{\mathbf{u}}]_{\times}\sin\theta + (1-\cos\theta) \left(\hat{\mathbf{u}}^{2}+\mathbf{I}\right) 
+= \mathbf{I} +[\hat{\mathbf{u}}]_{\times}\sin\theta+[\hat{\mathbf{u}}]_{\times}(1-\cos\theta)$$`
+
+`$$\mathbf{R}=\mathbf{I}+\sin\theta[\hat{\mathbf{u}}]_{\times}+(1-\cos\theta)[\hat{\mathbf{u}}]_{\times}^{2}$$`
+
+
+
 
 
 ---

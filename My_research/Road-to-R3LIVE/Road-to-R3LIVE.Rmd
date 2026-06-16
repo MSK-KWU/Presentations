@@ -825,14 +825,67 @@ $$
 $$[\hat{\mathbf{u}}]_{\times}^{2}=\hat{\mathbf{u}}\hat{\mathbf{u}}^{T}-\mathbf{I}
 \text{,} \quad
 \hat{\mathbf{u}}\hat{\mathbf{u}}^{T}
-= \mathbf{K}^{2} + \mathbf{I}$$
+= [\hat{\mathbf{u}}]_{\times}^{2} + \mathbf{I}$$
 
 - 이를 Rodrigues rotation matrix에 대입하면,
 
-$$\mathbf{R}=\mathbf{I}\cos\theta + [\hat{\mathbf{u}}]_{\times}\sin\theta + (1-\cos\theta) \left(\hat{\mathbf{u}}^{2}+\mathbf{I}\right) 
-= \mathbf{I} +[\hat{\mathbf{u}}]_{\times}\sin\theta+[\hat{\mathbf{u}}]_{\times}(1-\cos\theta)$$
+$$\mathbf{R}=\mathbf{I}\cos\theta + [\hat{\mathbf{u}}]_{\times}\sin\theta + (1-\cos\theta) \left([\hat{\mathbf{u}}]_{\times}^{2}+\mathbf{I}\right)$$
+$$\mathbf{R}=\mathbf{I}+[\hat{\mathbf{u}}]_{\times}\sin\theta+[\hat{\mathbf{u}}]_{\times}^{2}(1-\cos\theta)$$
 
-$$\mathbf{R}=\mathbf{I}+\sin\theta[\hat{\mathbf{u}}]_{\times}+(1-\cos\theta)[\hat{\mathbf{u}}]_{\times}^{2}$$
+---
+# Iterated Error State Kalman Filter (IESKF)
+
+- 앞에 정리해둔것들 전부 다 가져다 써서 FAST-LIO로 들고 와보면, 
+- $\color{#7CFC00}{\mathbf{p}}$ 를 $\color{navy}{\mathbf{p'}}$ 로 회전시킨 것은 중심축 $\hat{\mathbf{u}}$과 각도 $\theta$
+  - Axis-Angle representation! $\phi = \theta\hat{\mathbf{u}}$
+$$\color{navy}{\mathbf{p'}} = \mathbf{R}\color{#7CFC00}{\mathbf{p}} \text{,} \quad \mathbf{R} = \mathrm{Exp}(\phi) = \mathrm{Exp}(\theta\hat{\mathbf{u}}) \text{,} \quad
+\mathrm{exp}(\phi^{\wedge}) = \mathrm{exp}(\theta[\hat{\mathbf{u}}]_{\times})$$
+$$\mathbf{R}=\mathbf{I}+[\hat{\mathbf{u}}]_{\times}\sin\theta+[\hat{\mathbf{u}}]_{\times}^{2}(1-\cos\theta)
+\rightarrow \mathbf{R} = \mathbf{I} + \frac{\sin\theta}{\theta}\boldsymbol{\phi}^{\wedge} + 
+\frac{1-\cos\theta}{\theta^{2}} \left(\boldsymbol{\phi}^{\wedge}\right)^{2}$$
+- FAST LIO의 수식과 일치함
+   - 논문 수식이 살짝...abuse...
+$$
+\operatorname{Exp}(\mathbf{r})
+=
+\mathbf{I}
++
+\frac{\mathbf{r}}{\lVert \mathbf{r} \rVert}
+\sin\left(\lVert \mathbf{r} \rVert\right)
++
+\frac{\mathbf{r}^{2}}{\lVert \mathbf{r} \rVert^{2}}
+\left(
+1-\cos\left(\lVert \mathbf{r} \rVert\right)
+\right)
+$$
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+- Therefore, Rotation의 update는 아래와 같이 $\boxplus$ 로 정의
+$$\mathbf{R} \boxplus \mathbf{r} = \mathbf{R}\mathrm{Exp}(\mathbf{r})$$ 
+
+.pull-left[
+- Left perturbation  
+$$\mathrm{Exp}({}^{w}\delta\phi) {}^{b}\mathbf{p}{}^{w}\mathbf{R}_b$$
+- 먼저 world frame으로의 변환을 본 뒤에, world frame에서의 변화 확인!
+$${}^{w}\mathbf{p} = \mathrm{Exp}({}^{w}\delta\phi){}^{w}\mathbf{R}_b {}^{b}\mathbf{p}$$
+]
+
+.pull-right[
+- Right perturbation
+$${}^{w}\mathbf{R}_b\mathrm{Exp}({}^{b}\delta\phi) {}^{b}\mathbf{p}$$
+- body frame에서의 변화를 확인한 뒤에, world frame으로의 변환!
+$${}^{w}\mathbf{p} = {}^{w}\mathbf{R}_b\mathrm{Exp}({}^{b}\delta\phi) {}^{b}\mathbf{p}$$
+]
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+- 앞서 설명한 내용은, Tangent space에서의 결과를 exponential map을 통해 $\mathfrak{so}(3) \rightarrow \mathrm{SO}(3)$ 로 
+- Tangent space에서 iterative하게 error를 추정해서 최종 error state를 얻었다고 하면, 그 명확한 **error-state**는 다음과 같이 생각할 수 있음
+$$\mathbf{R}_{1} \boxminus \mathbf{R}_{2}=\mathrm{Log}(\mathbf{R}_{2}^{\top}\mathbf{R}_{1})
+\text{,} \quad \mathbf{R}_{2}=\mathbf{R}_{1}\mathrm{Exp}(\mathbf{r})$$
+$$\mathbf{R}_{1}^{\top}\mathbf{R}_{2}=\mathrm{Exp}(\mathbf{r})$$
+$$\therefore\quad\mathbf{r}=\mathrm{Log}(\mathbf{R}_{1}^{\top}\mathbf{R}_{2})$$
 
 
 
@@ -840,29 +893,9 @@ $$\mathbf{R}=\mathbf{I}+\sin\theta[\hat{\mathbf{u}}]_{\times}+(1-\cos\theta)[\ha
 
 ---
 # Iterated Error State Kalman Filter (IESKF)
+ - 증명
 
 
-- Exponential, Logarithm map을 증명하기 위해서, 먼저 회전 벡터, 그 벡터의 skew-symmetric matrix를 아래와 같이 정의한다.
-$$
-\mathbf{r} = \begin{bmatrix}
-  r_1 \\\\
-  r_2 \\\\
-  r_3
-\end{bmatrix}
-\in \mathbb{R}^3
-\text{, } \quad
-\lfloor \mathbf{r} \rfloor \times= 
-\begin{bmatrix}
-  0   &  -r_3 &   r_2  \\\\ 
-  r_3 &    0  &  -r_1  \\\\
- -r_2 &   r_1 &   0
-\end{bmatrix}
-\in \mathfrak{so}\text{(3)}
-$$
-
-- Taylor series를 다시 들고와보면, scalar에서의 taylor series를 matrix가지고 해보면
-$$ e^x = 1 + x + \frac{x^2}{2!} + \frac{x^3}{3!} + \cdots $$
-$$\exp(\mathbf{A})=\mathbf{I}+\mathbf{A}+\frac{\mathbf{A}^2}{2!}+\frac{\mathbf{A}^3}{3!}+\frac{\mathbf{A}^4}{4!}+\frac{\mathbf{A}^5}{5!}\cdots$$
 
 
 ---
@@ -896,22 +929,6 @@ $$
 
 
 
----
-# Iterated Error State Kalman Filter (IESKF)
-### left VS right perturbation
-.pull-left[
-- Left perturbation  
-$$\mathrm{Exp}({}^{w}\delta\phi) {}^{b}\mathbf{p}{}^{w}\mathbf{R}_b$$
-- 먼저 world frame으로의 변환을 본 뒤에, world frame에서의 변화 확인!
-$${}^{w}\mathbf{p} = \mathrm{Exp}({}^{w}\delta\phi){}^{w}\mathbf{R}_b {}^{b}\mathbf{p}$$
-]
-
-.pull-right[
-- Right perturbation
-$${}^{w}\mathbf{R}_b\mathrm{Exp}({}^{b}\delta\phi) {}^{b}\mathbf{p}$$
-- body frame에서의 변화를 확인한 뒤에, world frame으로의 변환!
-$${}^{w}\mathbf{p} = {}^{w}\mathbf{R}_b\mathrm{Exp}({}^{b}\delta\phi) {}^{b}\mathbf{p}$$
-]
 
 ---
 # Iterated Error State Kalman Filter (IESKF)

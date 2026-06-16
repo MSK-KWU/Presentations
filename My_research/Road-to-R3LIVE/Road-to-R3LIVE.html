@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="" xml:lang="">
   <head>
-    <title>Road to R3LIVE</title>
+    <title>Kalman Filters and its Mathematical Foundations</title>
     <meta charset="utf-8" />
     <script src="libs/header-attrs-2.30/header-attrs.js"></script>
     <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
@@ -15,54 +15,38 @@
 class: center, middle, inverse, title-slide
 
 .title[
-# Road to R3LIVE
-]
-.subtitle[
-## Mathmatics, Probability, and Filter
+# Kalman Filters and its Mathematical Foundations
 ]
 .author[
 ### <p>Minsu Kim</p>
 ]
 .date[
-### 2026.05
+### 2026.06
 ]
 
 ---
 
 
 
+class: title-slide
+count: false
 
-&lt;!-- class: title-slide
-count: false --&gt;
+
+
 # Contents
 
-.center.f-140.nt-03[
-  **R3LIVE**
+.center.f-140[
 ]
 .pull-left.nt-02[
-  - Fast LIO
-    - Filter-based LiDAR-Inertial Odometry
-      - Kalman Filter
-      - EKF
+    - Kalman Filter
+      - Linear system
+      - Non-linear system
       - IKF(IESKF)
-    - LiDAR point undistortion
-    - Lie Algebra
-      - SE(3)
-        - SO(3)
-    - Data structure
-      - Voxel
-      - Incremental k-d tree
-    - Principle Compnent Analysis
-      - K-NN
-      - FLANN 
+        - Lie group, algebra
+
     
 ]
-.pull-right.nt-02[
-  - R3LIVE
-    - Photometric Error
-  
-]
-    
+
 &lt;!-- ---
 # Notations
 - Scalars, Vectors, Matrices
@@ -878,10 +862,12 @@ $$
 # Iterated Error State Kalman Filter (IESKF)
 - 앞서 설명한 내용은, Tangent space에서의 결과를 exponential map을 통해 `\(\mathfrak{so}(3) \rightarrow \mathrm{SO}(3)\)` 로 
 - Tangent space에서 iterative하게 error를 추정해서 최종 error state를 얻었다고 하면, 그 명확한 **error-state**는 다음과 같이 생각할 수 있음
-`$$\mathbf{R}_{1} \boxminus \mathbf{R}_{2}=\mathrm{Log}(\mathbf{R}_{2}^{\top}\mathbf{R}_{1})
-\text{,} \quad \mathbf{R}_{2}=\mathbf{R}_{1}\mathrm{Exp}(\mathbf{r})$$`
-`$$\mathbf{R}_{1}^{\top}\mathbf{R}_{2}=\mathrm{Exp}(\mathbf{r})$$`
-`$$\therefore\quad\mathbf{r}=\mathrm{Log}(\mathbf{R}_{1}^{\top}\mathbf{R}_{2})$$`
+`$$\mathbf{R}_{\mathrm{new}}=\mathbf{R}_{\mathrm{old}}\mathrm{Exp}(\mathbf{r})$$`
+`$$\mathbf{R}_{\mathrm{old}}^{T}\mathbf{R}_{\mathrm{new}}=\mathrm{Exp}(\mathbf{r})$$`
+`$$\therefore\quad\mathbf{r}=\mathbf{R}_{\mathrm{new}}\boxminus\mathbf{R}_{\mathrm{old}}=\mathrm{Log}
+\left(\mathbf{R}_{\mathrm{old}}^{T}\mathbf{R}_{\mathrm{new}}\right)$$`
+
+
 
 
 
@@ -919,7 +905,7 @@ $$
 +\cdots
 $$
 ]
----
+&lt;!-- ---
 # Iterated Error State Kalman Filter (IESKF)
 
 
@@ -931,7 +917,7 @@ $$
 
 - Gauss newton과 뭐가 흡사한지 보자
 - 그러고 난 뒤에, IKF의 프로세스를 정리해보자
-- 여기서부터 FAST LIO2를 입혀서, forward passing과 backward에서 lidar undistortion을 묶어서 설명하고, R3LIVE를 정리하자. 그렇게 끝내자.
+- 여기서부터 FAST LIO2를 입혀서, forward passing과 backward에서 lidar undistortion을 묶어서 설명하고, R3LIVE를 정리하자. 그렇게 끝내자. --&gt;
 
   
 &lt;!-- xaringan::inf_mr('My_research/Road-to-R3LIVE/Road-to-R3LIVE.Rmd') --&gt;

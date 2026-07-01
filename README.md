@@ -31,4 +31,4 @@ This is a project file of presentations started from 2025.01.13
 | 발표 자료 | 링크 |
 |---|---|
 | PyTorch Tutorial | [슬라이드 보기](https://msk-kwu.github.io/Presentations/My%20research/Pytorch_tutorial.html) |
-| Road to R3LIVE | [슬라이드 보기](https://msk-kwu.github.io/Presentations/My_research/Road-to-R3LIVE/Road-to-R3LIVE.html) |
+| Kalman Filters: From Linear to Nonlinear Systems | [슬라이드 보기](https://msk-kwu.github.io/Presentations/My_research/Road-to-R3LIVE/Road-to-R3LIVE.html) |

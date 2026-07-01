@@ -876,14 +876,67 @@ $$\therefore\quad\mathbf{r}=\mathbf{R}_{\mathrm{new}}\boxminus\mathbf{R}_{\mathr
 
 
 
+---
+# Iterated Error State Kalman Filter (IESKF)
+$$\mathcal{M} = SO(3) \times \mathbb{R}^{15}, \qquad
+\dim(\mathcal{M}) = 18$$
 
+$$\mathbf{x} \doteq
+\begin{bmatrix}
+{}^{G}\mathbf{R}_{I}^{T} &
+{}^{G}\mathbf{p}_{I}^{T} &
+{}^{G}\mathbf{v}_{I}^{T} &
+\mathbf{b}_{\omega}^{T} &
+\mathbf{b}_{a}^{T} &
+{}^{G}\mathbf{g}^{T}
+\end{bmatrix}^{T}
+\in \mathcal{M}$$
 
+$$\mathbf{u} \doteq
+\begin{bmatrix}
+\omega_{m}^{T} &
+\mathbf{a}_{m}^{T}
+\end{bmatrix}^{T},
+\qquad
+\mathbf{w} \doteq
+\begin{bmatrix}
+\mathbf{n}_{\omega}^{T} &
+\mathbf{n}_{a}^{T} &
+\mathbf{n}_{b\omega}^{T} &
+\mathbf{n}_{ba}^{T}
+\end{bmatrix}^{T}$$
+
+$$\mathbf{f}(\mathbf{x}_{i}, \mathbf{u}_{i}, \mathbf{w}_{i})=
+\begin{bmatrix}
+\omega_{m_i} - \mathbf{b}_{\omega_i} - \mathbf{n}_{\omega_i} \\\\
+{}^{G}\mathbf{v}_{I_i} \\\\
+{}^{G}\mathbf{R}_{I_i}
+\left(
+\mathbf{a}_{m_i} - \mathbf{b}_{a_i} - \mathbf{n}_{a_i}
+\right)
++
+{}^{G}\mathbf{g}_{i} \\
+\mathbf{n}_{b\omega_i} \\
+\mathbf{n}_{ba_i} \\
+\mathbf{0}_{3 \times 1}
+\end{bmatrix}$$
 
 
 ---
 # Iterated Error State Kalman Filter (IESKF)
- - 증명
 
+$$\widetilde{\mathbf{x}}_{k-1}
+\doteq
+\mathbf{x}_{k-1} \boxminus \bar{\mathbf{x}}_{k-1}
+=
+\begin{bmatrix}
+\delta\boldsymbol{\theta}^{T} &
+{}^{G}\widetilde{\mathbf{p}}_{I}^{T} &
+{}^{G}\widetilde{\mathbf{v}}_{I}^{T} &
+\widetilde{\mathbf{b}}_{\omega}^{T} &
+\widetilde{\mathbf{b}}_{a}^{T} &
+{}^{G}\widetilde{\mathbf{g}}^{T}
+\end{bmatrix}^{T}$$
 
 
 
@@ -912,6 +965,14 @@ $$
 +\cdots
 $$
 ]
+
+---
+# Iterated Error State Kalman Filter (IESKF)
+
+
+
+
+
 <!-- ---
 # Iterated Error State Kalman Filter (IESKF)
 

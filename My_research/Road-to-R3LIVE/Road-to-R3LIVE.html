@@ -301,8 +301,13 @@ count: false
 
 ---
 # Kalman Filter - Kalman Gain derivation
-- Kalman Gain을 구하기 위해서, predicted mean으로부터 예상되는 관측값 잠깐 활용
-`$$\mathbf{z}_t-\mathbf{C}_t \mathbf{x}_t = \mathbf{z}_t - \mathbf{C}_t \bar{\mu}_{x_t} + \mathbf{C}_t (\bar{\mu}_{x_t} - \mathbf{x}_t) = (\mathbf{z}_t - \mathbf{C}_t \bar{\mu}_{x_t}) - \mathbf{C}_t(\mathbf{x}_t - \bar{\mu}_{x_t})$$`
+- 여기서 correction을 위해서 residual을 predicted mean을 가지고 다시정리해보면,
+.f-80.nl-05[
+`$$\mathbf{z}_t-\mathbf{C}_t \mathbf{x}_t = 
+\mathbf{z}_t - \mathbf{C}_t \bar{\mu}_{x_t} + \mathbf{C}_t\bar{\mu}_{x_t} - \mathbf{C}_t\mathbf{x}_t =
+\mathbf{z}_t - \mathbf{C}_t \bar{\mu}_{x_t} + \mathbf{C}_t (\bar{\mu}_{x_t} - \mathbf{x}_t) = 
+(\mathbf{z}_t - \mathbf{C}_t \bar{\mu}_{x_t}) - \mathbf{C}_t(\mathbf{x}_t - \bar{\mu}_{x_t})$$`
+]
 
 - 이를 기존 식에 대입해보면
 `$$\bar{\Sigma}_{x_t}^{-1}(\mathbf{x}_t - \bar{\mu}_{x_t}) - \mathbf{C}_t^\top \mathbf{Q}^{-1} ( (\mathbf{z}_t - \mathbf{C}_t \bar{\mu}_{x_t}) - \mathbf{C}_t(\mathbf{x}_t - \bar{\mu}_{x_t})) = 0$$`
@@ -386,7 +391,8 @@ $$ \mathbf{A}^{-1}\mathbf{A} = \mathbf{I} \text{,} \quad \mathbf{A}\mathbf{A}^{-
 - 그러면 `\(\mathbf{\Sigma}_t\)`는 어떻게 구하나요?
   - 아까 전개해두었던 수식의 2차항!
 `$$\Bigg(\mathbf{x}_t^\top (\bar{\Sigma}_{x_t}^{-1} + \mathbf{C}_t^\top \mathbf{Q}^{-1} \mathbf{C}_t) 
-\mathbf{x}_t - 2\bar{\boldsymbol{\mu}}_{x_t}^\top \bar{\Sigma}_{x_t}^{-1} \mathbf{x}_t - 2 \mathbf{z}_t^\top \mathbf{Q}^{-1} \mathbf{C}_t \mathbf{x}_t+ const \Bigg)$$`
+\mathbf{x}_t - 
+\color{gray}{2\bar{\boldsymbol{\mu}}_{x_t}^\top \bar{\Sigma}_{x_t}^{-1} \mathbf{x}_t - 2 \mathbf{z}_t^\top \mathbf{Q}^{-1} \mathbf{C}_t \mathbf{x}_t+ const \Bigg)}$$`
 
 ---
 # Kalman Filter - final state
@@ -503,19 +509,19 @@ $$ \mathbf{A}^{-1}\mathbf{A} = \mathbf{I} \text{,} \quad \mathbf{A}\mathbf{A}^{-
 
 ---
 # Extended Kalman Filter 
-- EKF에서의 state transition
-- 우리가 알고있는 KF의 motion model
-`$$\mathbf{x}_t = f(\mathbf{x}_{t-1}, \mathbf{u}_t) + \mathbf{w}_t$$`
+- 우리가 알고있는 KF의 motion model을, Non-linear system으로 표현해보면
+`$$\mathbf{x}_t = f(\mathbf{x}_{t-1}, \mathbf{u}_t) + \mathbf{w}_t = \boldsymbol{\mu}_t + \mathbf{w}_t \text{,} \quad \mathbf{w}_t \sim \mathcal{N}(0, \mathbf{R}_t)$$`
 
 - EKF에서는, 비선형 시스템 모델이 이전 state의 평균을 기준으로 선형화된다고 가정
-`$$\mathbf{x}_t = f(\mathbf{x}_{t-1}, \mathbf{u}_t) \approx f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \boldsymbol{\epsilon}_t$$`
-
+`$$f(\mathbf{x}_{t-1}, \mathbf{u}_t) \approx f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1})$$`
+`$$\mathbf{x}_t = f(\mathbf{x}_{t-1}, \mathbf{u}_t) + \mathbf{w}_t = f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \mathbf{w}_t$$`
+`$$\mathbf{J}_t = \frac{\partial f(\mathbf{x}_{t-1}, \mathbf{u}_t)}{\partial \mathbf{x}_{t-1}} \bigg|_{\mathbf{x}_{t-1}=\boldsymbol{\mu}_{t-1}}$$`
 
 ---
 # Extended Kalman Filter 
 - `\(f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t)\)`만 다시 보면,
 `$$f(\mathbf{x}_{t-1}, \mathbf{u}_t) \approx f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1})
-\text{,} \quad \mathbf{J}_t = \frac{\partial f(\mathbf{x}, \mathbf{u}_t)}{\partial \mathbf{x}} \bigg|_{\mathbf{x}=\boldsymbol{\mu}_{t-1}}$$`
+\text{,} \quad $$
 
 `$$f(x) \approx f(x_0) + f'(x_0)(x - x_0) \\
 \text{Taylor series랑 똑같쥬?}$$`

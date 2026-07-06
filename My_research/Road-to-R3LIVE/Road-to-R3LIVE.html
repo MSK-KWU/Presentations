@@ -241,9 +241,9 @@ count: false
 - Measurement model
 `$$\mathbf{z}_t = \mathbf{C}_t \mathbf{x}_t + \boldsymbol{\delta}_t \text{,} \quad \boldsymbol{\delta}_t \sim \mathcal{N}(0, \mathbf{Q})$$`
 - 예측한 state를 기준으로 관측한 값은 아래와 같이 표현
-`$$\bar{\mathbf{z}}_t = \mathbf{C}_t \mathbf{x}_t$$`  
+`$$\bar{\mathbf{z}}_t = \mathbf{C}_t \bar{\boldsymbol{\mu}}_{\mathbf{x}_t}$$`  
 - 따라서, 실제 관측값과 예측된 관측값의 차이인 residual과 센서의 노이즈를 고려하면, 아래와 같이 표현 가능
-`$$p(\mathbf{z}_t | \mathbf{x}_t) = \eta \exp\left\{-\frac{1}{2}(\mathbf{z}_t-\mathbf{C}_t \mathbf{x}_t)^\top \mathbf{Q}^{-1}(\mathbf{z}_t-\mathbf{C}_t \mathbf{x}_t)\right\}$$`
+`$$p(\mathbf{z}_t | \mathbf{x}_t) = \eta \exp\left\{-\frac{1}{2}(\mathbf{z}_t-\mathbf{C}_t \bar{\boldsymbol{\mu}}_{\mathbf{x}_t})^\top \mathbf{Q}^{-1}(\mathbf{z}_t-\mathbf{C}_t \bar{\boldsymbol{\mu}}_{\mathbf{x}_t})\right\}$$`
 
 
 &lt;!-- ---
@@ -498,73 +498,83 @@ $$ \mathbf{A}^{-1}\mathbf{A} = \mathbf{I} \text{,} \quad \mathbf{A}\mathbf{A}^{-
 - 최적화 기법 중 Gauss-Newtion method에서는 Jacobian을 이용해서 Hessian을 근사
 `$$\mathbf{H} \approx \mathbf{J}^\top \mathbf{J}$$`
 
----
-# Extended Kalman Filter - Prediction step
-- 우리가 알고있는 KF의 motion model을, Non-linear system으로 표현해보면
-`$$\mathbf{x}_t = f(\mathbf{x}_{t-1}, \mathbf{u}_t) + \mathbf{w}_t \text{,} \quad \mathbf{w}_t \sim \mathcal{N}(0, \mathbf{R}_t)$$`
-
-- EKF에서도 이전 state의 평균을 기준으로 하고, 이전 state로부터 선형화된다고 가정
-`$$f(\mathbf{x}_{t-1}, \mathbf{u}_t) \approx f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1})$$`
-`$$\rightarrow f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) = \color{red}{\bar{\boldsymbol{\mu}}_t} + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1})$$`
-- Expectation을 취해보면(편차들의 평균은), 결국 0, 즉 선형화된 1st order 항은 mean에 영향을 주지 않음
-  - noise도 평균은 0!
-
-&lt;!-- `$$\mathbf{J}_t = \frac{\partial f(\mathbf{x}_{t-1}, \mathbf{u}_t)}{\partial \mathbf{x}_{t-1}} \bigg|_{\mathbf{x}_{t-1}=\boldsymbol{\mu}_{t-1}}$$` --&gt;
-
 &lt;!-- ---
-# Extended Kalman Filter 
+# Extended Kalman Filter - 1st order approximation
+- 수식으로 보면 아래와 같이 쓸 수 있음
+  - Gradient
+`$$f(\mathbf{x}) \approx f(\mathbf{x}_0) + \nabla f(\mathbf{x}_0)(\mathbf{x} - \mathbf{x}_0)$$`
+  - Jacobian
+`$$\mathbf{f}(\mathbf{x}) \approx \mathbf{f}(\mathbf{x}_0) + \mathbf{J}(\mathbf{x}_0)(\mathbf{x} - \mathbf{x}_0)$$` --&gt;
 
-.pull-left[
-- 1차근사항 항만 다시 보면,
-`$$f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1})$$`
+
+---
+# Extended Kalman Filter 
+- 우리가 알고있는 KF의 motion model을, Non-linear system으로 표현해보면
+`$$\mathbf{x}_t = f(\mathbf{x}_{t-1}, \mathbf{u}_t) + \mathbf{w}_t = \boldsymbol{\mu}_t + \mathbf{w}_t \text{,} \quad \mathbf{w}_t \sim \mathcal{N}(0, \mathbf{R}_t)$$`
+
+- EKF에서는, 비선형 시스템 모델이 이전 state의 평균을 기준으로 선형화된다고 가정
+`$$f(\mathbf{x}_{t-1}, \mathbf{u}_t) \approx f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1})$$`
+`$$\mathbf{x}_t = f(\mathbf{x}_{t-1}, \mathbf{u}_t) + \mathbf{w}_t = f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \mathbf{w}_t$$`
+`$$\mathbf{J}_t = \frac{\partial f(\mathbf{x}_{t-1}, \mathbf{u}_t)}{\partial \mathbf{x}_{t-1}} \bigg|_{\mathbf{x}_{t-1}=\boldsymbol{\mu}_{t-1}}$$`
+
+---
+# Extended Kalman Filter 
+- `\(f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t)\)`만 다시 보면,
+`$$f(\mathbf{x}_{t-1}, \mathbf{u}_t) \approx f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1})
+\text{,} \quad $$
 
 `$$f(x) \approx f(x_0) + f'(x_0)(x - x_0) \\
-\text{Taylor series랑 똑같지요?}$$`
+\text{Taylor series랑 똑같쥬?}$$`
 
-]
-
-
-.pull-right[
-  &lt;img src="fig/1st_order_ekf.png" width="110%"&gt;
-] --&gt;
+- 그럼, motion model에서의 mean, covariance는?
+  - 이전 state는 정확히 알고있다!(KF에서의 가정)
+`$$\mathbf{x}_{t-1} = \mathcal{N}(\boldsymbol{\mu}_{t-1}, \mathbf{\Sigma}_{t-1}) = \mathcal{N}(0, 0)$$`
 
 ---
-# Extended Kalman Filter - Prediction step
-- 그럼 Linearization 한 이유가 없지 않나요?
-  - Covariance에서 중요한 역할을 합니다.  
-- 현재 prediction된 mean으로부터, Covariance를 구하면,
-  - 앞에서 했던거 기억 나시죠? 편차의 Outer product!
-      - 증명은 굳이 두번 안하겠습니다^^;
-`$$\mathbf{x}_t \approx \boldsymbol{\bar{\mu}}_t + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \mathbf{w}_t$$`
-`$$\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t \approx \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \mathbf{w}_t$$`
+# Extended Kalman Filter 
+- 편차들의 합은 결국 0, 즉 선형화된 1st order 항은 삭제
+  - noise도 평균은 0!
+`$$\mathbf{x}_t \approx f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \boldsymbol{\epsilon}_t \\
+\rightarrow \boldsymbol{\bar{\mu}}_t = f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t)$$`
+- 그렇다면, Covariance는?
+`$$\mathbf{x}_t \approx \boldsymbol{\bar{\mu}}_t + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \boldsymbol{\epsilon}_t$$`
+`$$\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t \approx \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \boldsymbol{\epsilon}_t$$`
 `$$\mathbf{\bar{\Sigma}}_t \approx \mathbf{J}_t \mathbf{\Sigma}_{t-1} \mathbf{J}_t^\top + \mathbf{R}_t$$`
-- Predicted state
-$$ \mathbf{x}_t \sim \mathcal{N}(\boldsymbol{\bar{\mu}}_t, \mathbf{\bar{\Sigma}}_t)$$
 
 ---
-# Extended Kalman Filter - Correction step
+# Extended Kalman Filter 
 - Measurement model
-`$$\mathbf{z}_t = c(\mathbf{x}_t) + \boldsymbol{\mathbf{v}}_t \text{,} \quad \boldsymbol{\mathbf{v}}_t \sim \mathcal{N}(0, \mathbf{Q}_t)$$`
-- 함수 `\(c(\mathbf{x}_t)\)`도 예측된 state에서 선형화
-`$$c(\mathbf{x}_t) \approx c(\boldsymbol{\bar{\mu}}_t) + \mathbf{D}_t (\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t) \text{,} \quad \mathbf{D}_t = 
-\frac{\partial c(\mathbf{x}_t)}{\partial \mathbf{x}_t} \bigg|_{\mathbf{x}_t=\boldsymbol{\bar{\mu}}_t}$$`
-`$$\rightarrow c(\mathbf{x}_t) \approx \bar{\mathbf{z}}_t + \mathbf{D}_t (\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t) \text{,} \quad \therefore \mathbf{z}_t \approx \bar{\mathbf{z}}_t + \mathbf{D}_t (\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t) + \mathbf{v}_t$$`
-- Covariance를 구하면
-  - 이것도 앞과 똑같습니다^^
-`$$\mathbf{\bar{\Sigma}}_{z_t} \approx \mathbf{D}_t \mathbf{\bar{\Sigma}}_{t-1} \mathbf{D}_t^\top + \mathbf{Q}_t$$`
+`$$\mathbf{z}_t = h(\mathbf{x}_t) + \boldsymbol{\mathbf{v}}_t \text{,} \quad \boldsymbol{\mathbf{v}}_t \sim \mathcal{N}(0, \mathbf{Q}_t)$$`
+- 함수 `\(h(\mathbf{x}_t)\)`도 예측된 state에서 선형화
+`$$h(\mathbf{x}_t) \approx h(\boldsymbol{\bar{\mu}}_t) + \mathbf{H}_t (\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t) \text{,} \quad \mathbf{H}_t = \frac{\partial h(\mathbf{x}_t)}{\partial \mathbf{x}_t} \bigg|_{\mathbf{x}_t=\boldsymbol{\bar{\mu}}_t}$$`
+`$$\therefore \mathbf{z}_t \approx h(\boldsymbol{\bar{\mu}}_t) + \mathbf{H}_t (\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t) + \mathbf{v}_t$$`
+
 
 
 ---
-# Extended Kalman Filter - Correction step
+# Extended Kalman Filter 
+- 이후는 motion model과 크게 다르지 않음
+  - prediction 기준으로의 오차들의 평균은 0이므로, 1st order 항은 삭제
+
+`$$\mathbf{z}_t \approx h(\boldsymbol{\bar{\mu}}_t) + \mathbf{H}_t (\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t) + \mathbf{v}_t$$`
+`$$\rightarrow \boldsymbol{\bar{z}}_t = h(\boldsymbol{\bar{\mu}}_t)$$`
+
+- Covariance를 구하면, 
+`$$\mathbf{\bar{\Sigma}}_{z_t} \approx \mathbf{H}_t \mathbf{\bar{\Sigma}}_{t-1} \mathbf{H}_t^\top + \mathbf{Q}_t$$`
+
+
+
+---
+# Extended Kalman Filter 
 - Kalman Gain과 업데이트도 크게 다르지 않음
   - Linear system에서의 Kalman gain
 `$$\mathbf{K}_t = \bar{\Sigma}_{x_t}\mathbf{C}_t^\top (\mathbf{Q} + \mathbf{C}_t\bar{\Sigma}_{x_t}\mathbf{C}_t^\top)^{-1}$$`
   - Non-Linear system에서의 Kalman gain
-`$$\mathbf{K}_t = \mathbf{\bar{\Sigma}}_{z_t} \mathbf{D}_t^\top (\mathbf{D}_t \mathbf{\bar{\Sigma}}_{t-1} \mathbf{D}_t^\top + \mathbf{Q}_t)^{-1}$$`
+`$$\mathbf{K}_t = \mathbf{\bar{\Sigma}}_{z_t} \mathbf{H}_t^\top (\mathbf{H}_t \mathbf{\bar{\Sigma}}_{t-1} \mathbf{H}_t^\top + \mathbf{Q}_t)^{-1}$$`
 
 - 최종 update state
-`$$\boldsymbol{\mu}_t = \boldsymbol{\bar{\mu}}_t + \mathbf{K}_t (\mathbf{z}_t - c(\boldsymbol{\bar{\mu}}_t))$$`
-`$$\mathbf{\boldsymbol{\Sigma}}_t \approx (\mathbf{I} - \mathbf{K}_t \mathbf{D}_t) \mathbf{\bar{\Sigma}}_{t-1}$$`
+`$$\boldsymbol{\mu}_t = \boldsymbol{\bar{\mu}}_t + \mathbf{K}_t (\mathbf{z}_t - h(\boldsymbol{\bar{\mu}}_t))$$`
+`$$\mathbf{\bar{\Sigma}}_t \approx (\mathbf{I} - \mathbf{K}_t \mathbf{H}_t) \mathbf{\bar{\Sigma}}_{t-1}$$`
 
 ---
 # Iterated Error State Kalman Filter (IESKF)

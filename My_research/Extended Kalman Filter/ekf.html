@@ -1,0 +1,419 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>Chapter II. Extended Kalman Filter</title>
+    <meta charset="utf-8" />
+    <script src="libs/header-attrs-2.30/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <link rel="stylesheet" href="swan/swan.css" type="text/css" />
+    <link rel="stylesheet" href="swan/tachyons_ext.css" type="text/css" />
+    <link rel="stylesheet" href="logo-bottom-right.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+.title[
+# Chapter II. Extended Kalman Filter
+]
+.author[
+### <p>Minsu Kim</p>
+]
+.date[
+### 2026.07.23
+]
+
+---
+
+
+
+class: title-slide
+count: false
+
+
+
+# Contents
+.f-130[
+- What was the Kalman Filter?
+
+- Extended Kalman Filter
+  - Non-linear system
+      - Linearization
+]
+    
+
+
+&lt;!-- ---
+# Notations
+- Scalars, Vectors, Matrices
+  - Scalars: `\(x, y, z\)`
+  - Vectors: `\(\mathbf{x}, \mathbf{y}, \mathbf{z}\)`
+  - Matrices: `\(\mathbf{X}, \mathbf{Y}, \mathbf{Z}\)` --&gt;
+
+
+---
+# Kalman Filter - Linear System
+- Kalman Filter의 대표적인 가정 3가지
+  - Gaussian noise assumption: 시스템의 노이즈는 가우시안 분포를 따른다고 가정
+    `$$p(\mathbf{x}) = \det(2\pi\Sigma)^{-\frac{1}{2}}\exp\left\{-\frac{1}{2}(\mathbf{x}-\boldsymbol{\mu})^\top\Sigma^{-1}(\mathbf{x}-\boldsymbol{\mu})\right\}$$`
+
+  - Markov assumption: 시스템의 상태는 바로 **직전 상태**에만 의존한다고 가정
+    `$$p(\mathbf{x}_t) = p(\mathbf{x}_t | \mathbf{x}_{t-1}, \mathbf{u}_t)$$`
+
+  - Linear system이라고 가정 
+      `$$\mathbf{x}_{t} = \mathbf{A} \mathbf{x}_{t-1} + \mathbf{B} \mathbf{u}_{t} + \epsilon_{t}$$`
+
+---
+# Kalman Filter - Linear System
+- 그림으로 보면 어떻게 되나요?
+
+.pull-left.nl-03[
+
+&lt;img src="fig/graph_KF.png" width="100%"&gt;
+]
+.pull-right.ml-03[
+&lt;img src="fig/KF_state_update.png" width="100%"&gt;
+]
+
+
+---
+# Kalman Filter - final state
+- 그래서 Kalman Gain이 뭘 의미하는가...
+  - 극단적으로, `\(\mathbf{C}_t\)`가 1인 경우
+  - Distortion, Projection 없이 그대로 측정한 경우라고 '가정'
+- 그렇다면, `\(\mathbf{K}_t\)`는 `\(\bar{\Sigma}_{x_t}(\bar{\Sigma}_{x_t} + \mathbf{Q})^{-1}\)`이 됨
+  - 결국 비율문제!
+  - 예측한 내 state의 불확실성과 sensor의 불확실성을 모두 고려할 때, 내 불확실성이 차지하는 비중은?
+  - 내 불확실성이 크면, K가 커져서 관측값을 더 신뢰하고, 불확실성이 작다면, K가 작아져서 예측값을 더 신뢰하도록!
+- 최종적으로, 앞서 구한 Kalman gain을 이용한 최종 state는 아래와 같이 표현 가능
+`$$\mathbf{x}_t = \bar{\boldsymbol{\mu}}_{x_t} + \mathbf{K}_t (\mathbf{z}_t - \mathbf{C}_t \bar{\mu}_{x_t})$$`
+
+---
+# Extended Kalman Filter
+- 저번주시간의 질문...
+    - 어떤것이 Non-Linear 하다는거지요..?
+
+- 결론부터 얘기해보면..
+  - System 자체가 Non-Linear!
+
+
+
+---
+# Extended Kalman Filter
+- Linear System이라고 하면, Gaussian distribution이 그대로 유지되었음
+  - 선형 변환한 State는 여전히 Gaussian distribution을 따름!
+`$$\mathbf{x}_{t-1} \sim \mathcal{N}(\boldsymbol{\mu}_{t-1}, \mathbf{0}) \text{,} \quad\mathbf{\bar{\mu}}_{\mathbf{x}_t} = \mathbf{A}_t \boldsymbol{\mu}_{t-1} + \mathbf{B}_t \mathbf{u}_t$$`
+`$$\boldsymbol{\epsilon}_t \sim \mathcal{N}(0, \mathbf{R}) \text{,} \quad \bar{\Sigma}_{\mathbf{x}_t} = \mathbf{A}_t \mathbf{0} \mathbf{A}_t^\top +  \mathbf{R} =  \mathbf{R}$$`
+`$$\mathbf{x}_t = \mathbf{\bar{\mu}}_{\mathbf{x}_t} + \bar{\Sigma}_{\mathbf{x}_t} = \mathbf{A}_t \mathbf{x}_{t-1} + \mathbf{B}_t \mathbf{u}_t + \boldsymbol{\epsilon}_t$$`  
+
+- 근데 이 성질이 유지가 되지 않는다는 것...
+
+
+---
+# Extended Kalman Filter
+- EKF에서의 Motion model은 아래와 같이 표현 가능
+`$$\mathbf{x}_t = f(\mathbf{x}_{t-1}, \mathbf{u}_t) + \boldsymbol{\epsilon}_t \text{,} \quad \boldsymbol{\epsilon}_t \sim \mathcal{N}(0, \mathbf{R})$$`
+- 여기서 다음 state가 Gaussin distribution을 **유지한다는 보장**이 없음
+    - Motion/Measurement model이 임의의 함수를 통과 할 때, 그 결과가 Gaussian..?
+    - SLAM을 생각해보면.. 보통 추정하고 싶어하는 것은 2D/3D Pose.. 3D points..
+- 쉽게 생각하면, 추정하고자 하는 pose부터가 Non-Linear
+  - 추정하고자 하는 State의 성분이 Non-Linear한 성분이기에, **System 자체가 Linear하지 않음!**
+
+---
+# Extended Kalman Filter
+- 선형 시스템에서 비선형 시스템으로의 확장
+- 그렇게 어렵지 않다!
+- EKF는 시스템 모델과 관측 모델이 비선형 함수로 표현된다고 가정
+- 선형화를 위해서, Taylor expansion을 이용하여 시스템 모델과 관측 모델을 선형 근사
+   - Taylor series, expansion, appoximation...
+`$$f(x) \approx f(x_0) + f(x_0)'(x - x_0) + \frac{1}{2}f(x_0)''(x - x_0)^2 + \cdots$$`
+`$$f(\mathbf{x}) \approx f(\mathbf{x}_0) + \nabla f(\mathbf{x}_0)(\mathbf{x} - \mathbf{x}_0)$$`
+
+
+---
+# Extended Kalman Filter - Taylor expansion
+- 그림으로 보면 이렇게 볼 수 있지요
+
+.pull-left[
+- 1st order approximation : 
+  임의의 함수를 선형으로 근사해서, 궁금한 지점에서의 함수값의 **근사치**를 구하는 방법
+`$$f(x) \approx f(a) + f'(a)(x - a)$$`
+- Gradient descent, Newton's method 등에서 활용
+]
+
+.pull-right[
+  &lt;img src="fig/taylor_1st_order.png" width="110%"&gt;
+]
+
+---
+# Extended Kalman Filter - Taylor expansion
+.pull-left[
+- 2nd order approximation : 임의의 함수를 2차식으로 근사해서, 궁금한 지점에서의 함수값의 **근사치**를 구하는 방법
+`$$f(x) \approx f(a) + f'(a)(x - a)\\ + \frac{1}{2}f''(a)(x - a)^2$$`
+- 기울기 뿐만 아니라, 기존 함수의 곡률도 고려해서 근사하겠다
+  - 곡률까지 고려한만큼, 훨씬 더 정확한 근사치 제공
+]
+
+
+.pull-right[
+&lt;img src="fig/taylor_2nd_order.png" width="110%"&gt;
+]
+
+---
+# Extended Kalman Filter - 1st order approximation
+
+.pull-left[
+- Gradient: 스칼라 함수의 벡터 입력에 대한 편미분
+`$$\nabla f(\mathbf{x}) = \begin{pmatrix}
+  \frac{\partial f}{\partial x_1} \\
+  \frac{\partial f}{\partial x_2} \\
+  \vdots \\
+  \frac{\partial f}{\partial x_n}
+\end{pmatrix}$$`
+]
+
+.pull-right[ 
+- Jacobian: 벡터 함수의 벡터 입력에 대한 편미분
+`$$\mathbf{J}(\mathbf{x}) = \begin{pmatrix}
+  \frac{\partial f_1}{\partial x_1} &amp; \frac{\partial f_1}{\partial x_2} &amp; \cdots &amp; \frac{\partial f_1}{\partial x_n} \\
+  \frac{\partial f_2}{\partial x_1} &amp; \frac{\partial f_2}{\partial x_2} &amp; \cdots &amp; \frac{\partial f_2}{\partial x_n} \\
+  \vdots &amp; \vdots &amp; \ddots &amp; \vdots \\
+  \frac{\partial f_m}{\partial x_1} &amp; \frac{\partial f_m}{\partial x_2} &amp; \cdots &amp; \frac{\partial f_m}{\partial x_n}
+\end{pmatrix}$$`
+]
+
+---
+# Extended Kalman Filter 
+- 우리가 알고있는 KF의 motion model을, Non-linear system으로 표현해보면
+`$$\mathbf{x}_t = f(\mathbf{x}_{t-1}, \mathbf{u}_t) + \mathbf{w}_t = \boldsymbol{\mu}_t + \mathbf{w}_t \text{,} \quad \mathbf{w}_t \sim \mathcal{N}(0, \mathbf{R}_t)$$`
+
+- EKF에서는, 비선형 시스템 모델이 이전 state의 평균을 기준으로 선형화된다고 가정
+`$$f(\mathbf{x}_{t-1}, \mathbf{u}_t) \approx f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1})$$`
+`$$\mathbf{x}_t = f(\mathbf{x}_{t-1}, \mathbf{u}_t) + \mathbf{w}_t = f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \mathbf{w}_t$$`
+`$$\mathbf{J}_t = \frac{\partial f(\mathbf{x}_{t-1}, \mathbf{u}_t)}{\partial \mathbf{x}_{t-1}} \bigg|_{\mathbf{x}_{t-1}=\boldsymbol{\mu}_{t-1}}$$`
+
+---
+# Extended Kalman Filter 
+- `\(f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t)\)`만 다시 보면,
+`$$f(\mathbf{x}_{t-1} \text{, } \mathbf{u}_t) \approx f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1})$$`
+
+`$$f(x) \approx f(x_0) + f'(x_0)(x - x_0) \\
+\text{Taylor series랑 똑같쥬?}$$`
+
+- 그럼, motion model에서의 mean, covariance는?
+  - 이전 state는 정확히 알고있다!(KF에서의 가정)
+`$$\mathbf{x}_{t-1} = \mathcal{N}(\boldsymbol{\mu}_{t-1}, \mathbf{\Sigma}_{t-1}) = \mathcal{N}(0, 0)$$`
+
+
+---
+# Extended Kalman Filter 
+- 편차들의 합은 결국 0, 즉 선형화된 1st order 항은 삭제
+  - noise도 평균은 0!
+`$$\mathbf{x}_t \approx f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t) + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \boldsymbol{\epsilon}_t \\
+\rightarrow \boldsymbol{\bar{\mu}}_t = f(\boldsymbol{\mu}_{t-1}, \mathbf{u}_t)$$`
+- 그렇다면, Covariance는?
+`$$\mathbf{x}_t \approx \boldsymbol{\bar{\mu}}_t + \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \boldsymbol{\epsilon}_t$$`
+`$$\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t \approx \mathbf{J}_t (\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1}) + \boldsymbol{\epsilon}_t$$`
+`$$\mathbf{\bar{\Sigma}}_t \approx \mathbf{J}_t \mathbf{\Sigma}_{t-1} \mathbf{J}_t^\top + \mathbf{R}_t$$`
+
+---
+# Extended Kalman Filter 
+- Measurement model
+`$$\mathbf{z}_t = h(\mathbf{x}_t) + \boldsymbol{\mathbf{v}}_t \text{,} \quad \boldsymbol{\mathbf{v}}_t \sim \mathcal{N}(0, \mathbf{Q}_t)$$`
+- 함수 `\(h(\mathbf{x}_t)\)`도 예측된 state에서 선형화
+`$$h(\mathbf{x}_t) \approx h(\boldsymbol{\bar{\mu}}_t) + \mathbf{H}_t (\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t) \text{,} \quad \mathbf{H}_t = \frac{\partial h(\mathbf{x}_t)}{\partial \mathbf{x}_t} \bigg|_{\mathbf{x}_t=\boldsymbol{\bar{\mu}}_t}$$`
+`$$\therefore \mathbf{z}_t \approx h(\boldsymbol{\bar{\mu}}_t) + \mathbf{H}_t (\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t) + \mathbf{v}_t$$`
+
+
+
+---
+# Extended Kalman Filter 
+- 이후는 motion model과 크게 다르지 않음
+  - prediction 기준으로의 오차들의 평균은 0이므로, 1st order 항은 삭제
+
+`$$\mathbf{z}_t \approx h(\boldsymbol{\bar{\mu}}_t) + \mathbf{H}_t (\mathbf{x}_t - \boldsymbol{\bar{\mu}}_t) + \mathbf{v}_t$$`
+`$$\rightarrow \boldsymbol{\bar{z}}_t = h(\boldsymbol{\bar{\mu}}_t)$$`
+
+- Covariance를 구하면, 
+`$$\mathbf{\bar{\Sigma}}_{z_t} \approx \mathbf{H}_t \mathbf{\bar{\Sigma}}_{t-1} \mathbf{H}_t^\top + \mathbf{Q}_t$$`
+
+
+
+---
+# Extended Kalman Filter 
+- Kalman Gain과 업데이트도 크게 다르지 않음
+  - Linear system에서의 Kalman gain
+`$$\mathbf{K}_t = \bar{\Sigma}_{x_t}\mathbf{C}_t^\top (\mathbf{Q} + \mathbf{C}_t\bar{\Sigma}_{x_t}\mathbf{C}_t^\top)^{-1}$$`
+  - Non-Linear system에서의 Kalman gain
+`$$\mathbf{K}_t = \mathbf{\bar{\Sigma}}_{z_t} \mathbf{H}_t^\top (\mathbf{H}_t \mathbf{\bar{\Sigma}}_{t-1} \mathbf{H}_t^\top + \mathbf{Q}_t)^{-1}$$`
+
+- 최종 update state
+`$$\boldsymbol{\mu}_t = \boldsymbol{\bar{\mu}}_t + \mathbf{K}_t (\mathbf{z}_t - h(\boldsymbol{\bar{\mu}}_t))$$`
+`$$\mathbf{\bar{\Sigma}}_t \approx (\mathbf{I} - \mathbf{K}_t \mathbf{H}_t) \mathbf{\bar{\Sigma}}_{t-1}$$`
+
+
+  
+&lt;!-- xaringan::inf_mr('My_research/Extended Kalman Filter/ekf.Rmd') --&gt;
+&lt;!-- pagedown::chrome_print('My_sresearch/Extended Kalman Filter/ekf.html') --&gt;
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+  "highlightStyle": "github",
+  "highlightLines": true,
+  "countIncrementalSlides": false,
+  "ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+<script>
+(function () {
+  function appendBottomLogoText() {
+    document
+      .querySelectorAll(
+        '.remark-slide-content:not(.title-slide):not(.inverse):not(.hide-logo)'
+      )
+      .forEach(function (el) {
+        if (el.querySelector('.logo')) {
+          return;
+        }
+
+        el.insertAdjacentHTML(
+          'beforeend',
+          '<div class="logo"> </div>'
+        );
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', appendBottomLogoText);
+  window.addEventListener('load', appendBottomLogoText);
+  setTimeout(appendBottomLogoText, 300);
+})();
+</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

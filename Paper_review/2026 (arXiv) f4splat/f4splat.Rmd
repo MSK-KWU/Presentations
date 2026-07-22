@@ -107,22 +107,22 @@ per-ray volumetric rendering 때문에 계산 비용이 큼; 그래서 더 빠�
 
 ---
 # Method - Problem Formulation
-- 입력 context image $N_{ctx}$가 주어졌을 때, **기존의 feed-forward 3DGS 방법들**은 pixel마다 Gaussian 생성
+- 입력 context image $N_{ctx}$가 주어졌을 때, **대부분의 기존 feed-forward 3DGS 방법들**은 pixel마다 Gaussian 생성
 $$\{\mathbf{I}^{ctx}_i\}^{N_{ctx}}_{i=1} \text{,} \quad \mathbf{I}^{ctx}_i \in \mathbb{R}^{3 \times H \times W } \text{,} \quad 
-N^{ctx}_{i=1}HW$$
+N_{ctx}HW$$
 - **F4Splat**에서는, 각 pixel마다 Gaussian을 생성하는 대신, **densification score**를 예측해서 non-uniform하게 Gaussian을 생성
-  - target budget도 입력으로 받아 최대 Gaussian 수를 조절할 수 있도록 함
-  - 최종 출력은 Gaussian primitive $\quad\mathcal{G} = \{\mathbf{g}_g\}_{g=1}^{N_\mathcal{G}}$와 camera parameter $\{\hat{\mathbf{P}}^{N_{ctx}}_{i=1}\}$로 구성된 set
-$$(\{\mathbf{g}_g\}_{g=1}^{N_\mathcal{G}}\text{,} \; \{\mathbf{\hat{P}}^{N_{ctx}}_{i=1}\}) = \mathbf{F}_\theta(\{\mathbf{I}^{ctx}_{i=1}, \bar{N}_\mathcal{G})$$  
+  - User-specified target budget $\bar{N}_\mathcal{G}$ 도 입력으로 받아 최대 Gaussian 수를 조절할 수 있도록 함
+  - 최종 출력은 3D Gaussian primitive set $\mathcal{G} = \{\mathbf{g}_g\}_{g=1}^{N_\mathcal{G}}$와 camera parameter $\{\hat{\mathbf{P}}^{N_{ctx}}_{i=1}\}$
+$$(\mathcal{G} = \{\mathbf{g}_g\}_{g=1}^{N_\mathcal{G}}\text{,} \; \{\mathbf{\hat{P}}^{N_{ctx}}_{i=1}\}) = \mathbf{F}_\theta(\{\mathbf{I}^{ctx}_{i=1}, \bar{N}_\mathcal{G})$$  
 
 ---
 # Method - Problem Formulation
 - 각 Gaussian $\mathbf{g}_g \in \mathbb{R}^{d_{\mathcal{G}}}$는 center, opacity, quaternion, scale, SH coefficient로 구성
 $$\boldsymbol{\mu}_g \in \mathbb{R}^{3}\text{,}\; \sigma_g \in \mathbb{R} \text{,}\; \mathbf{q}_g \in \mathbb{R}^{4}\text{,}\; \mathbf{s}_g \in \mathbb{R}^{3}\text{,}\; \mathbf{h}_g \in \mathbb{R}^{\mathcal{V}}$$
 - 각 Camera parameter는 intrinsic, extrinsic으로 구성
-  - $\hat{\mathbf{K}}^{ctx}_i$ 내부의 focal lenght는 $\hat{f}^{ctx}_i$
+  - $\hat{\mathbf{K}}^{ctx}_i$ 내부의 focal lenght $\hat{f}^{ctx}_i$ 도 예측
+          - $\hat{(\cdot)}$, hat이 붙은 모든 변수들은 network prediction
 $$\hat{\mathbf{P}}^{ctx}_i = (\hat{\mathbf{K}}^{ctx}_i\text{,} \hat{\mathbf{T}}^{ctx}_i)$$
-- 그리고, $\hat{(\cdot)}$, hat이 붙은 모든 변수들은 network prediction임
 
 
 ---

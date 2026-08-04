@@ -42,72 +42,587 @@ count: false
 
 # Contents
 
-1. Gaussian LIC2
-2. GS-LIVM
+1. Gaussian LIC
+2. Gaussian LIC2
+3. GS-LIVM
 
 ---
-# Gaussian LIC2
+# Gaussian LIC
 - Coco-LIC에 기반한 Gaussian Splatting 논문
-  - Continuous Time SLAM에 대해서도 공부해야 하기에 이 부분은 blackbox로 놓고 감
-  - Gaussian LIC도 Coco-LIC의 pose를 그대로 사용한다고 언급
--  그럼에도 불구하고 pipeline을 보자면, 
-  - 0.1초마다 구간을 분할하는데, 여기서 Non-uniform B-spline을 사용하여, control point의 개수를 motion intensity에 따라 조절
-  - Trajectory를 생성하고, point-to-plane residual로 pose optimization을 수행(LiDAR)
-  - 이미지에서 feature마다 KLT로 tracking 수행하고, 3D point를 projection하여 residual을 계산하고, pose optimization 수행(Image)
-  - Pose를 미분하면 IMU의 angular velocity와 linear acceleration을 얻을 수 있고, 이를 IMU값과 비교(IMU)
-- 즉, Coco-LIC에서 나온Pose를 Gaussian LIC에서 그대로 사용
+  - Coco-LIC는 **Blackbox**
+      - Gaussian LIC도 Coco-LIC의 pose를 그대로 사용한다고 언급
+  - 매 0.1초마다 factor graph optimization 수행
+      - **LiDAR factor**: 각 point timestamp에서 scan-to-map point-to-plane residual
+      - **Visual factor**: 최신 image timestamp에서 LiDAR map point의 reprojection residual
+      - **IMU factor**: 각 raw IMU timestamp에서 spline derivative와 측정값 비교
+      - 모든 factor가 동일한 B-spline control points와 IMU bias를 공동 최적화
+  - 따라서, 매 0.1초마다 각 센서의 측정 시각에서 LiDAR·Camera·IMU factor를 생성하고, 
+  이를 이용해 하나의 continuous-time B-spline의 control point와 IMU bias를 공동 최적화한다.
+- 이렇게 결정된 Non-uniform B-Spline에 Camera timestamp 기준 query로 얻은 pose를 input으로 사용
 
 ---
-# Gaussian LIC2
-- 이렇게 얻은 pose는, Camera timestamp 기준으로 가장 마지막 image frame을 기준으로 함
-  - 따라서, 0.1초마다 구간을 분할하여 얻은 pose를, 마지막 image frame 기준으로 interpolation하여, 각 image frame에 대한 pose를 얻음
-      - Coco-LIC는 Blackbox.
+# Gaussian LIC
+- 최신 이미지 기준으로 얻은 pose와 최근 0.1초간의 LiDAR point를 이미지에 투영하고, 이 때 얻은 colorized point cloud를 함께 Gaussian mapping에 전달
 .center[
-<img src="fig/gaussian_lic2.png" width=100%>
+<img src="fig/gaussian_lic.png" width=100%>
 ]
 
 ---
-# Gaussian LIC2
+# Method 
+### I. Preliminaries
+.pull-left[
+**3D Gaussian의 파라미터**
+
+- Position: $\boldsymbol{\mu}\in\mathbb{R}^{3}$
+- Scale: $\mathbf{S}=\mathrm{diag}(s_x,s_y,s_z)$
+- Rotation: $\mathbf{R}\in SO(3)$
+- Opacity: $o\in\mathbb{R}$
+- Appearance: degree-3 $\mathbf{SH}\in\mathbb{R}^{48}$
+
+Scale과 rotation으로 anisotropic Gaussian의 3D covariance를 구성:
+
+$$
+\boldsymbol{\Sigma}
+=
+\mathbf{R}\mathbf{S}\mathbf{S}^{T}\mathbf{R}^{T}
+$$
+]
+
+.pull-right[
+**Camera image로 projection**
+
+World Gaussian의 mean을 camera frame으로 변환:
+
+$$\hat{\boldsymbol{\mu}}={}^{C}\mathbf{R}_{W}\boldsymbol{\mu}+
+{}^{C}\mathbf{p}_{W}, \quad d =\mathbf e_3^{T}\hat{\boldsymbol{\mu}}$$
+
+3D mean과 covariance를 image plane의 2D Gaussian으로 변환:
+
+$$\boldsymbol{\mu}=\pi_c\!\left(\frac{\hat{\boldsymbol{\mu}}}{d}\right)$$
+
+$$\boldsymbol{\Sigma} =
+\left[\mathbf J\,{}^{C}\mathbf R_W\boldsymbol{\Sigma}({}^{C}\mathbf R_W)^{T}\mathbf J^{T}\right]_{2\times2}$$
+
+즉, 3D ellipsoid를 image 위의 **2D Gaussian ellipse**로 splatting.
+]
+
+---
+# Method 
+
+.pull-left.f-85[
+**2D Gaussian의 pixel weight**
+
+Image pixel을 $\boldsymbol{\rho}=[u\;\;v]^T$라 할 때, $i$번째 Gaussian의 opacity contribution은:
+
+$$
+\alpha_i(\boldsymbol{\rho})
+=
+o_i\exp \left(
+-\frac{1}{2}
+(\boldsymbol{\mu}'_i-\boldsymbol{\rho})^T
+(\boldsymbol{\Sigma}'_i)^{-1}
+(\boldsymbol{\mu}'_i-\boldsymbol{\rho})
+\right)
+$$
+
+- $o_i$: Gaussian의 opacity
+- $\boldsymbol{\mu}'_i,\boldsymbol{\Sigma}'_i$: projected 2D mean과 covariance
+- Gaussian 중심에 가까운 pixel일수록 $\alpha_i$가 커짐
+]
+
+.pull-right.f-85[
+**Alpha Blending**
+
+Gaussian을 camera depth 순으로 정렬하고, 앞쪽 Gaussian을 통과한 transmittance를:
+
+$$T_i=\prod_{j=1}^{i-1}(1-\alpha_j)$$
+
+로 정의하면:
+
+$$\mathbf C(\boldsymbol{\rho})=\sum_{i=1}^{n}\mathbf c_i\alpha_iT_i$$
+
+$$\mathbf D(\boldsymbol{\rho})=\sum_{i=1}^{n}d_i\alpha_iT_i,\qquad\mathbf O(\boldsymbol{\rho})
+=\sum_{i=1}^{n}\alpha_iT_i$$
+
+- $\mathbf c_i$: SH에서 계산한 view-dependent RGB
+- $d_i$: camera frame에서의 Gaussian depth
+- $\mathbf O$: 누적 opacity map
+]
+
+---
+# Method
+### II. Multimodal Odometry and Mapping Data Preparation
+
+- LiDAR point는 정확한 geometric prior를 제공하지만, camera보다 관측 범위가 제한적
+  - 최근 0.1초의 LiDAR point를 random downsampling한 후 최신 image에 projection하여 color를 할당
+  - Camera FoV 밖의 point는 제거
+- LiDAR가 관측하지 못한 영역을 보완하기 위해 추가적인 visual point를 생성
+- Shi–Tomasi corner를 검출하고 여러 keyframe에서 KLT tracking하여 visual track을 구성
+  - 하나의 corner가 연속된 $N_t$개 keyframe에서 추적되면, Coco-LIC의 camera poses와 camera intrinsics를 이용해 triangulation
+  - 정확한 metric-scale pose에 기반하므로 비교적 안정적인 visual SfM point를 얻을 수 있음
+- Gaussian initialization에는 LiDAR point와 visual SfM point를 함께 사용
+
+
+---
+# Method
+
 .center.nt-02[
 <img src="fig/coco_lic_result.png" width=70%>
 ]
 
----
-# Gaussian LIC2
-- 이 다음은, 각 포인트에 zero-degree SH 
- - LiDAR point color는 해당 image projection으로 어은 color
-      - Visual SfM point에 대한 color 할당은 설명이 없음;;;
- - Opacity는 0.1로, rotation은 identity 
- - scale은 isotropic하게 depth를 focal lenght로 나누어 설정
- $$s = \begin{bmatrix} \frac{d}{f} & \frac{d}{f} & \frac{d}{f} \end{bmatrix}$$
-- Background 표현 위한 Gaussian도 따로 배치(기존 3DGS와 같음)
-  - Unbonded outdoor scene이라면, point가 sparse한데, background가 없다면 rendering 시에 빈 공간이 발생할 수 있음.
 
 ---
-# Gaussian LIC2
-- Gaussian을 initialization하고, 매 5번째 frame을 keyframe으로 설정
-  - Keyframe마다 opacity map $M$을 랜더링해서, opacity가 적은 녀석들만 initialiation에 사용
-$$ M = O < \tau $$
-- 이후 최적화 단계
-  - Keyframe들 중 랜덤하게 뽑아 re-rendering loss로 optimization 수행
-$$\mathcal{L} = (1 - \lambda)\left\|\mathbf{E}[\mathbf{C}] - 
-\bar{\mathbf{C}}\right\|_1 + \lambda \mathcal{L}_{D\text{-}SSIM}$$
+# Method
+### III. Photo-Realistic Mapping using Gaussian Splatting
+#### i. Initialization of 3D Gaussians
+- Mapping module은 reconstruction을 수행하기 위해 tracking module로부터 camera pose, undistorted image, 3D points로 구성된다.
+- 먼저, Gaussian을 Initialization을 수행
+  - 받은 모든 frame에 대해서 Gaussian을 생성
+        - Point의 Color를 사용해 Zero-degree SH로 설정하고, opacity, rotation은 identity
+        - Scale은 aliasing artifact를 방지하기 위해 $\frac{d}{f} \mathbf{e}$ 로 초기화
+  - Background가 빈 채로 학습하면 quality 저하를 야기할 수 있어서, 추가로 sky gaussian을 추가로 생성
+        - World origin 중심으로 아주 radius를 가정하고, 이 radius의 위치에 하늘색과 비슷한 색(RGB로 조정)과 $o_b = 0.7$로 초기화
+---
+# Method
+#### ii. Expansion of Gaussian Map
+- 매 5번째 frame을 keyframe으로 선택하고, 최근 5개 frame에서 전달받은 3D point들을 하나의 point cloud로 병합
+  - 첫 프레임에는 모든 point 사용해서 map bootstrap
+   - 이후 keyframe에서는 기존 Gaussian map의 opacity map을 rendering하고, 
+   $\mathbf{M}=\mathbf{O}<\tau$인 pixel로 projection되는 병합 point만 새로운 Gaussian으로 초기화
+        - 새롭게 관측되는 영역에만 Gaussian 추가
 
 ---
-# Gaussian LIC2
+# Method
+#### iii. Optimization
+
+- 현재 입력 frame이 keyframe이면, 전체 keyframe 중 $K$개를 random sampling
+  - 선택된 keyframe의 순서를 shuffle하고 각 viewpoint에서 image를 re-rendering
+  - 과거 keyframe을 함께 사용하여 global consistency를 유지
+
+$$\mathcal{L}=(1-\lambda)\left\|\mathbf{E}[\mathbf{C}]-\bar{\mathbf{C}}\right\|_1+\lambda\mathcal{L}_{D\text{-}SSIM}$$
+
+- $\mathbf{C}$: Gaussian map에서 rendering한 image
+- $\bar{\mathbf{C}}$: 실제 camera image
+- $\mathbf{E}$: camera exposure 보정을 위한 $3\times4$ affine matrix
+- Optimization target: Gaussian의 position, scale, rotation, opacity, SH appearance와 exposure $\mathbf{E}$
+- **Camera pose는 Coco-LIC의 추정값을 고정하여 사용**
+
+---
+# Experiments
 
 .pull-left[
-<img src="fig/gaussian_lic2_tab1.png" width=100%>
+<img src="fig/gaussian_lic_tab1.png" width=100%>
 ]
 
 
 .pull-right[
-<img src="fig/gaussian_lic2_tab2.png" width=100%>
+<img src="fig/gaussian_lic_tab2.png" width=100%>
+]
+
+
+---
+# Experiments
+
+.pull-left.f-80[
+- 총 3개의 public LiDAR–Inertial–Camera dataset에서 9개 sequence를 평가
+  - **FAST-LIVO**: solid-state LiDAR
+    - hku2 (f0), LiDAR Degenerate (f1), Visual Challenge (f2)
+  - **R3LIVE**: solid-state LiDAR
+    - hku campus seq 00 (r0), degenerate seq 00 (r1), degenerate seq 01 (r2)
+  - **MCD**: mechanical spinning LiDAR
+    - tuhh day 02 (m0), day 03 (m1), day 04 (m2)의 일부 구간
+- FAST-LIVO/R3LIVE: $640\times512$, MCD: $640\times480$
+- Stereo image가 제공되면 left image만 사용
+]
+
+.pull-right[
+<img src="fig/gaussian_lic_result.png" width=100%>
 ]
 
 ---
+# Conclusion
+- LIC(LiDAR, IMU, Camera) 기반 unbounded scene 에서의 안정적인 Real-time SLAM
+  - 실제로 기존의 outdoor LIC dataset으로 잘됐음
+  - Rendering, Trajectory 모두 준수한 성능
+- LiDAR의 빈 공간을 Visual-SfM을 통해 보완하였음
+  - Sky Gaussian도 추가해서 학습 시 부족한 부분들을 충분히 보완하려고 노력
+        - 다만, Heuristic 한 부분이 있고(최대 반지름을 설정), 그렇게 의미있었는지도 모르겠음(큰 차이 없음)
+
+
+---
+# Gaussian LIC2
+
+- Gaussian LIC의 후속논문
+- LiDAR point의 부족한 부분을 SPNet으로, Network로 해결했음(Depth completion)
+  - 이전에는 Visual Feature를 통한 SfM point 추가로 해결
+  - 논문과 다르게, 코드에는 10x10 patch마다 20m안쪽의 가장 가까운 depth를 가진 pixel을 선택해서 reprojection
+        - 20m 이상이면 만들지 않음(부정확하다고 판단)
+  - 색상은 Keyframe에서의 RGB 색상을 그대로 사용
+- LiDAR odometry를 구할 때, LOAM과 같이 feature extraction 방식이 아니라, raw point cloud와 ikd-tree 를 FAST-LIO 방식으로 수정
+  - 다만 코드에 반영이 안되어있음(?)
+
+
+---
+# Method
+
+<img src="fig/gaussian_lic_2.png" width=100%>
+
+---
+# Method
+### Continuous time Trajectory Formulation
+
+.pull-left.f-70[
+- Coco-LIC의 **continuous-time trajectory formulation을 그대로 사용**
+
+**Translation $(\mathbf{p}\in\mathbb{R}^3)$**
+
+
+$$\mathbf p(t)=\mathbf p_{i-k}+\sum_{j=1}^{k}\lambda_j(t)
+\left(\mathbf p_{i-k+j}-\mathbf p_{i-k+j-1}\right)$$
+
+
+**Rotation $(\mathbf{R}\in SO(3))$**
+
+
+$$\begin{aligned}
+\Delta\mathbf R_j=\operatorname{Log}\!\left(\mathbf R_{i-k+j-1}^{-1}\mathbf R_{i-k+j}\right) \text{,} \quad
+\mathbf R(t)=\mathbf R_{i-k}\prod_{j=1}^{k}\operatorname{Exp}\left(\lambda_j(t)\Delta\mathbf R_j\right)
+\end{aligned}$$
+
+$$\mathbf R(t)=F_1\!\left(\mathbf R_{i-3},\ldots,\mathbf R_i,t_i,t_{i+1},t\right)$$
+$$\mathbf p(t)=F_2\!\left(\mathbf p_{i-3},\ldots,\mathbf p_i,t_i,t_{i+1},t\right)$$
+
+
+$$\mathbf T(t)=\begin{bmatrix} \mathbf R(t)&\mathbf p(t) \\
+\mathbf 0^\top&1\end{bmatrix}$$
+
+
+
+
+]
+
+.pull-right.nt-05[
+<img src="fig/gaussian_lic_2_front.png"
+     style="width:110%; max-width:none;">
+]
+
+---
+# Sections IV, V
+- Gaussian Splatting Representation, LiDAR-Inertial-Camera Fusion
+- 기존 Gaussian LIC와, Coco-LIC의 설명을 그대로 사용하였음(솔직히 이 부분은 journal page 늘리기 용으로 보임)
+  - Gaussian LIC에서는 냅두다가 이제와서;;
+
+
+---
+# LiDAR-Inertial-Camera Fusion
+- 시스템의 기초는 Coco-LIC에 기반함
+  - Non-uniform B-spline으로 continuous-time trajectory를 표현
+  - 최신 0.1초 구간을 active sliding window로 사용하며, 0.1초마다 window를 이동 $[t_{k-1} ,t)$
+  - Window 내의 가장 최신 image를 선택하고, 실제 image timestamp에서 spline을 query하여 camera pose를 얻음
+  - VI-A는 기존 Coco-LIC의 trajectory extension을 그대로 다시 설명한 부분
+- Subsection B 또한 Coco-LIC에 대한 설명
+  - 다만 LiDAR odometry를 구할 때, LOAM과 같이 feature extraction 방식이 아니라, raw point cloud와 ikd-tree 를 
+  FAST-LIO 방식으로 수정
+
+
+---
+# LiDAR-Inertial-Camera Fusion
+#### B. Continuous-Time Factor Grah
+- 기존 Gaussian LIC와 크게 다르지 않다.
+  - journal에 내려고 하다보니 수식을 일일이 다 쓴듯(좋은 방향인지 모르겠다.)
+- **LiDAR Factor**
+$$\mathbf{r}_L = {}^{W}\mathbf{n}^{\top}_{\pi} {}^{W}\hat{\mathbf{p}} + {}^{W}\mathbf{d}_{\pi} \text{,}
+\quad {}^{W}\hat{\mathbf{p}} = {}^{W}_{L}\mathbf{R}(t){}^{L}\mathbf{p} + {}^{W}\mathbf{p}_{L}$$
+.center[
+<img src="fig/p2pl_fig.png" width=60%>
+]
+
+
+
+---
+# LiDAR-Inertial-Camera Fusion
+- **Inertial Factor**
+  - IMU의 raw measurement를 B-spline derivative와 비교하여 residual을 계산
+  - 나중에 optimization을 통해 B-spline control point와 IMU bias를 공동 최적화
+$$\mathbf{r}_I =\begin{bmatrix}
+{}^{I}\boldsymbol{\omega}(t)-{}^{I}\boldsymbol{\omega}_{m}+\mathbf b_g^{\kappa-1} \\
+{}^{I}\mathbf a(t)-{}^{I}\mathbf a_{m}+\mathbf b_a^{\kappa-1}
+\end{bmatrix},
+\qquad
+\mathbf r_{I_b} =
+\begin{bmatrix}
+\mathbf b_g^{\kappa}-\mathbf b_g^{\kappa-1} \\
+\mathbf b_a^{\kappa}-\mathbf b_a^{\kappa-1}
+\end{bmatrix}$$
+
+
+---
+# LiDAR-Inertial-Camera Fusion
+- **Camera Factor (Option 1, Default)**
+  - Voxel로 관리되는 global LiDAR map point를 image에 projection하고, KLT optical flow로 현재 image의 pixel observation과 association
+  - Fundamental matrix RANSAC과 PnP RANSAC으로 outlier를 제거
+  - Gaussian map을 사용하지 않는 기존 Gaussian-LIC 방식이며, 공개 코드에서는 Cauchy robust loss를 추가로 적용
+  - Residual은 reprojection error로 정의
+$${}^{C}\hat{\mathbf{p}}=({}^{W}_{C}\mathbf{T}(t)^{-1} {}^{W}\mathbf{p}) \text{,} \qquad \mathbf {r}_{C_1}= 
+\pi_c(\frac{{}^{C}\hat{\mathbf{p}}}{\mathbf{e}_3^\top{}^{C}\hat{\mathbf{p}}}) - \begin{bmatrix}u \\ v \end{bmatrix}$$
+
+---
+# LiDAR-Inertial-Camera Fusion
+- **Camera Factor (Option 2)**
+  - Gaussian map을 사용하여 rendering 한 이미지를 활용
+    - Residual은 rendering image와 실제 image의 photometric error로 정의
+$$\mathcal{L}=\frac{1}{2}\left\|\hat{\mathbf{C}}-\mathbf{C}\right\|_1
++\frac{1}{2}\mathcal{L}_{\mathrm{D\text{-}SSIM}}\!\left(\hat{\mathbf{C}},\mathbf{C}\right), \quad 
+\hat{\mathbf{C}}\!\left(\mathcal{G},{}^{W}_{C}\mathbf{T}(t)\right)$$
+- 위 loss를 최소화 하도록 Gaussian map은 고정하고 camera pose만 optimization
+$$\mathbf{r}_{C_2} = Log({}^{W}_{C}\mathbf{T}(t){}^{W}_{C}\tilde{\mathbf{T}}(t)^{-1})$$
+
+- Total loss
+.f-80[
+$$\underset{\mathcal{X}^{\kappa}}{\arg\min}\left\{
+\begin{aligned}
+&\sum\left\|\mathbf{r}_{L}\right\|_{\boldsymbol{\Sigma}_{L}}^{2}
++\sum\left\|\mathbf{r}_{I}\right\|_{\boldsymbol{\Sigma}_{I}}^{2}
++\sum\left\|\mathbf{r}_{I_b}\right\|_{\boldsymbol{\Sigma}_{I_b}}^{2} \\
+&\quad+\sum\left\|\mathbf{r}_{C_x}\right\|_{\boldsymbol{\Sigma}_{C}}^{2}
++\sum\left\|\mathbf{r}_{\mathrm{prior}}\right\|_{\boldsymbol{\Sigma}_{\mathrm{prior}}}^{2}
+\end{aligned}
+\right\}$$
+]
+
+---
+# DATA PREPARATION FOR GAUSSIAN MAPPING
+
+**A. Mapping Data Grouping**
+
+- 최신 구간 $[t_{\kappa-1},t_{\kappa})$의 trajectory optimization이 끝나면, 최적화된 trajectory로 최신 image의 
+camera pose를 구하고 해당 구간의 LiDAR point들을 world frame으로 변환
+  - 이들을 묶어 하나의 **hybrid frame**으로 정의
+
+- 매 **5번째 hybrid frame을 keyframe**으로 선택 
+  - 최근 5개 hybrid frame의 LiDAR point들을 병합하여 현재 keyframe image에 projection $\rightarrow$ **sparse depth map**을 생성
+
+- 병합한 LiDAR point를 $N_p$개마다 하나씩 무작위 downsampling한 뒤 현재 image에 projection하여 RGB를 할당
+  - 최종 keyframe은 **posed image, sparse depth map, colorized LiDAR points**로 구성
+
+
+---
+# DATA PREPARATION FOR GAUSSIAN MAPPING
+
+**B. Instant Depth Completion**
+
+.f-80[
+- LiDAR와 camera의 FoV 차이로 발생하는 blind area를 보완한다. 기존 Gaussian-LIC의 visual triangulation은 texture와 parallax에 민감하므로, Gaussian-LIC2에서는 **SPNet depth completion**을 사용한다.
+
+- Keyframe의 RGB image $\mathbf{C}$, sparse LiDAR depth map $\mathbf{D}_s$, valid mask $\mathbf{M}$을 SPNet에 입력하여 completed dense depth map $\mathbf{D}_c$를 생성한다.
+
+- 기존 LiDAR depth가 존재하는 pixel에서 completion 전후의 평균 depth 차이 $\delta$를 계산하고, $\delta<\epsilon_1$일 때만 completion 결과를 사용한다.
+
+- Negative depth와 depth gradient가 큰 pixel을 제거한 뒤 image를 $30\times30$ patch로 나눈다. LiDAR depth가 없는 patch에서 가장 가까운 유효-depth pixel 하나를 선택하고, depth가 $\epsilon_2$보다 작은 경우만 남긴다.
+
+- 선택한 pixel을 3D로 back-projection하여 colorized visual point $\mathcal{P}$를 만들고 world frame으로 변환한다. 이후 기존 colorized LiDAR points와 병합하여 Gaussian 초기화에 사용한다.
+]
+
+
+---
+# DATA PREPARATION FOR GAUSSIAN MAPPING
+
+.center[
+<img src="fig/lic2_depth_completion.png" width=100%>
+]
+
+
+---
+# REAL-TIME PHOTO-REALISTIC MAPPING
+#### A. Gaussian Map Management
+- 기존의 Gaussian LIC1과 동 일한 RGB loss를 사용
+$$\mathcal{L}_c=(1-\lambda)\left\|\hat{\mathbf{C}}-\mathbf{C}\right\|_1
++\lambda\mathcal{L}_{\mathrm{D\text{-}SSIM}}\!\left(\hat{\mathbf{C}},\mathbf{C}\right)$$
+
+- Geometry consistency를 위한 depth loss 추가
+
+$$\mathcal{L}_d=
+\left\|\left(\frac{\hat{\mathbf{D}}}{\hat{\mathbf{O}}}-\mathbf{D}_s\right)
+\cdot\mathbf{M}_d\right\|_1,
+\qquad \mathbf{M}_d=\mathbf{D}_s>0$$
+
+.f-70[
+- $\hat{\mathbf{D}}/\hat{\mathbf{O}}$: opacity가 반영되어 누적된 rendering depth를 pixel의 누적 opacity로 정규화
+  - Incremental mapping 중 $\hat{\mathbf{O}}<1$인 영역에서 depth가 실제보다 작아지는 현상을 보정
+
+- $(\hat{\mathbf{D}}/\hat{\mathbf{O}}-\mathbf{D}_s)\cdot\mathbf{M}_d$: 정규화된 rendering depth와 sparse LiDAR depth의 $L_1$ error
+  - $\mathbf{M}_d=\mathbf{D}_s>0$을 적용하여 실제 LiDAR depth가 존재하는 pixel에서만 loss를 계산
+  - 정확한 metric LiDAR depth를 supervision으로 사용하여 Gaussian map의 geometry consistency를 유지
+]
+
+---
+# REAL-TIME PHOTO-REALISTIC MAPPING
+#### B. CUDA-Related Acceleration Strategies
+
+.pull-left.f-70.nt-02[
+- **목적**
+  - Gaussian의 개수나 표현력을 줄이지 않고, CUDA rasterizer의 forward/backward 병목 개선
+
+- **1) Fast Tile-Based Culling (Fig. 4a)**
+  - 투영된 anisotropic 2D Gaussian을 큰 원으로 감싸면 실제 contribution이 거의 없는 tile까지 처리되는 문제
+  - 각 Gaussian--tile pair에서 최대 weight $\alpha_{\max}$를 계산하고, $\alpha_{\max}<1/255$이면 해당 tile을 제거
+
+- **2) Per-Gaussian Backpropagation (Fig. 4b)**
+  - $16\times16$ tile의 Gaussian을 32개씩 bucket으로 묶고, Gaussian 기준으로 256개 pixel을 순회하며 RGB/depth/opacity gradient를 register에 누적
+  - 모든 bucket을 병렬 처리하고, 누적 gradient만 global memory에 기록하여 atomic 연산과 대기 시간을 감소
+      - 이외에도 Sparse Adam, low/high-order SH 분리, efficient SSIM, 등 실시간성을 위한 엔지니어링 수행
+]
+
+.pull-right.nt-05[
+<img src="fig/lic2_fig4.png" width=100%>
+]
+
+
+---
+# EXPERIMENT RESULTS
+#### Experiment Setup
+
+.pull-left.f-70.nt-02[
+##### Implementation & Hardware
+
+- **Implementation**: C++ / CUDA
+  - Tracking과 mapping thread를 병렬 실행하고 ROS로 통신
+  - Gaussian mapping은 LibTorch, SPNet inference는 TensorRT 사용
+
+- **Desktop PC**
+  - NVIDIA RTX 4090 (**24 GB VRAM**)
+  - Intel Core i9-13900KF
+  - RAM 64 GB
+
+- **평가 조건**
+  - 동일 sensor setup에는 동일한 hyperparameter 적용
+  - 모든 비교 방법에서 loop closure와 post-processing 미사용
+]
+
+.pull-right.f-60.nt-02[
+##### Datasets
+
+- **Public: localization + in-sequence novel-view rendering**
+  - **R3LIVE**: Livox Avia 10 Hz / IMU 200 Hz / RGB 15 Hz ($640\!\times\!512$); outdoor 6개 및 degeneration sequence
+  - **FAST-LIVO**: Avia 기반; FAST-LIVO 전체와 FAST-LIVO2의 첫 2개 sequence
+  - **MCD**: Ouster OS1-64 10 Hz / IMU 400 Hz / RGB 30 Hz ($640\!\times\!480$); `tuhh_day_02--04`의 앞 200 s ($\sim$300 m)
+  - **M2DGR**: Velodyne VLP-32C 10 Hz / IMU 100 Hz / RGB 10 Hz ($640\!\times\!480$); `room_01--03`
+
+- **Self-collected: in/out-of-sequence rendering + depth 평가**
+  - Mid-360 10 Hz + RealSense D455 30 Hz ($640\!\times\!480$) + IMU 200 Hz
+  - Avia 10 Hz + Hikvision RGB 15 Hz ($640\!\times\!512$) + IMU 200 Hz
+  - Ground-truth continuous-time pose와 LiDAR 기반 depth map 제공
+]
+
+---
+# EXPERIMENT RESULTS
+
+.center.nt-03[
+<img src="fig/lic2_exp_table1.png" style="max-width:100%; max-height:550px; object-fit:contain;">
+]
+
+---
+# EXPERIMENT RESULTS
+.center.nt-03[
+<img src="fig/lic2_exp_table2.png" style="max-width:70%; max-height:550px; object-fit:contain;">
+]
+
+---
+# EXPERIMENT RESULTS
+
+.center.nt-03[
+<img src="fig/lic2_exp_fig6.png" style="max-width:92%; max-height:550px; object-fit:contain;">
+]
+
+---
+# EXPERIMENT RESULTS
+
+.center.nt-03[
+<img src="fig/lic2_exp_table3.png" style="max-width:80%; max-height:550px; object-fit:contain;">
+]
+
+---
+# EXPERIMENT RESULTS
+
+.center.nt-03[
+<img src="fig/lic2_exp_fig7_top.png" style="max-width:80%; max-height:550px; object-fit:contain;">
+]
+
+---
+# EXPERIMENT RESULTS
+
+.center.nt-03[
+<img src="fig/lic2_exp_fig7_bottom.png" style="max-width:80%; max-height:550px; object-fit:contain;">
+]
+
+---
+# EXPERIMENT RESULTS
+
+.center.nt-03[
+<img src="fig/lic2_exp_fig8_top.png" style="max-width:80%; max-height:550px; object-fit:contain;">
+]
+
+---
+# EXPERIMENT RESULTS
+
+.center.nt-03[
+<img src="fig/lic2_exp_fig8_bottom.png" style="max-width:80%; max-height:550px; object-fit:contain;">
+]
+
+---
+# EXPERIMENT RESULTS
+
+.center.nt-03[
+<img src="fig/lic2_exp_table4.png" style="max-width:80%; max-height:550px; object-fit:contain;">
+]
+
+---
+# EXPERIMENT RESULTS
+
+.pull-left.nt-03[
+<img src="fig/lic2_exp_fig9_top.png" style="max-width:80%; max-height:550px; object-fit:contain;">
+]
+.pull-right.nt-03[
+<img src="fig/lic2_exp_fig9_bottom.png" style="max-width:80%; max-height:550px; object-fit:contain;">
+]
+
+
+
+---
+# EXPERIMENT RESULTS
+
+.center.nt-03[
+<img src="fig/lic2_exp_table5.png" style="max-width:80%; max-height:550px; object-fit:contain;">
+]
+
+---
+# EXPERIMENT RESULTS
+
+.center.nt-03[
+<img src="fig/lic2_exp_fig10.png" style="max-width:80%; max-height:550px; object-fit:contain;">
+]
+
+---
+# EXPERIMENT RESULTS
+
+.center.nt-05[
+<img src="fig/lic2_exp_table6.png" style="max-width:92%; max-height:550px; object-fit:contain;">
+]
+
+---
+# Conclusion
+- Gaussian LIC를 기반으로 발전시키고, 딥러닝 기법(?)을 적용하고자 Visual SfM point를 SPNet으로 대체하여 LiDAR point의 부족한 부분을 보완
+  - 괜찮은건지는 모르겠음. 성능상 개선은 확실함
+- LiDAR-Inertial-Camera Fusion을 통해, 기존의 Coco-LIC의 continuous-time trajectory formulation을 그대로 사용하고, LiDAR factor, IMU factor, Camera factor를 이용하여 optimization 수행
+  - Camera factor는 기존의 reprojection error를 이용한 방식과, Gaussian map을 이용한 photometric error를 이용한 방식 두 가지를 제공
+      - 근데 LIC 1과 같은 방식으로 돌아감. Option 2는 accept되면 공개하나..
+
+
+---
 # GS-LIVM
-- 
+
+
+- Voxel PCA를 통해 
 
 
 

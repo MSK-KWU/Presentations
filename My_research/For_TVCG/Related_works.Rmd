@@ -42,9 +42,9 @@ count: false
 
 # Contents
 
-1. Gaussian LIC
-2. Gaussian LIC2
-3. GS-LIVM
+1. Gaussian LIC (ICRA, 2025)
+2. Gaussian LIC2 (arXiv, 2025)
+3. GS-LIVM (ICCV, 2025)
 
 ---
 # Gaussian LIC
@@ -621,12 +621,37 @@ $$\mathcal{L}_d=
 ---
 # GS-LIVM
 
+- LiDAR point는 여전히 Sparse함
+  - Gaussian LIC1/2에서 각각 Visual SfM point, SPNet depth completion을 통해 보완
+  - 본 논문에서는 Voxel-GPR을 통해 균일한 point-cloud mesh grid 생성
+      - 실제로는 point sampling 한 뒤 가까운 point들 묶어서 Gaussian Initialization
+- Tracking thread에 대한 내용이 없음
+  - Mapping에 대한 얘기를 method의 첫장부터 다루는데, pose를 어떻게 다루겠다는지 이야기가 없음
+    - SR-LIVO(Sweep Reconstruction LIVO)로부터 pose를 받아온다고 되어있지, 이 이후의 refinement는 없음
 
-- Voxel PCA를 통해 
+
+---
+# Method
+#### I. Voxel-Level Gaussian Process Regression
+
+
+
+
+---
+# Method
 
 
 
 
 
+---
+# Method
+
+
+
+
+
+---
+# Method
 <!-- xaringan::inf_mr('My_research/For_TVCG/Related_works.Rmd') -->
 <!-- pagedown::chrome_print('My_research/For_TVCG/Related_works.html') -->

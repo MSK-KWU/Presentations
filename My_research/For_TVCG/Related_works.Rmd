@@ -628,11 +628,275 @@ $$\mathcal{L}_d=
 - Tracking thread에 대한 내용이 없음
   - Mapping에 대한 얘기를 method의 첫장부터 다루는데, pose를 어떻게 다루겠다는지 이야기가 없음
     - SR-LIVO(Sweep Reconstruction LIVO)로부터 pose를 받아온다고 되어있지, 이 이후의 refinement는 없음
+      - 이 논문도, 앞선 LIC 시리즈와 같이 Pose refinement는 안한다고 봐도 무방할듯
 
+
+---
+# GS-LIVM
+- 저자들이 주장하는 주요 contribution
+  - **Voxel-level Gaussian Process Regression (V-GPR)**: LiDAR point cloud를 voxel 단위로 GPR 수행하여, sparse point cloud를 dense하게 보완
+  - **Fast initialization technique** : Scale, Rotation parameter를 정밀하게 초기화 해서, 최적화 수렴시간을 단축
+  - **Devised Iterative Optimization framework**: Variance 중심 최적화를 통해 Voxel-GPR module의 수렴을 가속
+  - **VAlidation on Oudoor** : 광범위한 야외환경에서의 검증. (Botanic Garden도 실험함)
+
+---
+# Method
+### System Overview
+.center[
+<img src="fig/livm_fig2.png" width=80%>
+]
 
 ---
 # Method
 #### I. Voxel-Level Gaussian Process Regression
+.pull-left.f-80[
+- Voxel-GPR의 입력은 raw LiDAR point cloud $\mathcal{P}_f$, Global voxel hash map $\mathcal{C}$ 
+- 해당 입력을 Algorighm 2를 이용해 Global voxel map에 현재 LiDAR point cloud를 누적하고, **변경된 voxel의 hash key만** return
+
+.ml-02[
+  <img src="fig/livm_alg_store.png" width=90%>
+]
+]
+
+.pull-right.nt-12[
+<div style="position:relative; display:inline-block; width:90%;">
+  <img src="fig/voxel_GPR_pseudo.png" style="display:block; width:100%;">
+  <div style="position:absolute; left:0.5%; top:16.0%; width:67.5%; height:4.0%; border:3px solid #e00000; border-radius:4px; box-sizing:border-box; pointer-events:none;"></div>
+</div>
+]
+
+
+---
+# Method
+.center[
+<img src="fig/livm_alg_store_flow_v2.png" width=100%>
+]
+
+---
+# Method
+.pull-left.f-80[
+- 그 다음 단계로, $\mathcal{S}_{updated}$의 voxel hash key $H_p$를 순회하며 해당 voxel에 누적된 전체 points를 $\mathcal{P}_{\alpha}$에 저장
+  - 즉, 새 point가 추가된 voxel을 hash key로 빠르게 검색해서 찾아낸 다음, 해당 voxel 내의 point들을 $\mathcal{P}_{\alpha}$에 저장
+- PCA를 통해 Covariance matrix를 계산해서, EVD를 통해 고유벡터 3개를 뽑아냄
+  - Eigen value가 최소인 방향을 normal vector로 설정
+]
+
+
+.pull-right.nt-08[
+<div style="position:relative; display:inline-block; width:90%;">
+  <img src="fig/voxel_GPR_pseudo.png" style="display:block; width:100%;">
+  <div style="position:absolute; left:0.5%; top:23.0%; width:67.5%; height:8.0%; border:3px solid #e00000; border-radius:4px; box-sizing:border-box; pointer-events:none;"></div>
+</div>
+]
+
+---
+# Method
+.center[
+<img src="fig/livm_pca_cuda_flow.png" width=100%>
+]
+
+---
+# Method
+.pull-left.f-80[
+- Eigen value가 최소인 방향을 $Z$라고 하면,(case Z)에 대해서 실행
+- x, y 좌표는 $\mathbf{x}_{\alpha}$에, z 좌표는 $\mathbf{f}_{\alpha}$에 저장
+- $\mathcal{P}_{\alpha *}^x$, $\mathcal{P}_{\alpha *}^y$ 의 좌표는 voxel 내에서 일정 grid의 좌표 가지도록 uniform하게 sampling
+- 해당 좌표를 입력으로 넣어 GPR을 수행하여, $\mathbf{x}_{\alpha *}$를 얻음
+
+<img src="fig/livm_uniform_query_grid_v2.png" width=100%>
+]
+
+
+.pull-right.nt-08[
+<div style="position:relative; display:inline-block; width:90%;">
+  <img src="fig/voxel_GPR_pseudo.png" style="display:block; width:100%;">
+  <div style="position:absolute; left:0.5%; top:30.0%; width:100%; height:40.0%; border:3px solid #e00000; border-radius:4px; box-sizing:border-box; pointer-events:none;"></div>
+</div>
+]
+
+
+---
+# Method
+.pull-left.f-80[
+- 마지막으로 해당 point들을 커널에 넣어 Covariance matrix $\mathbf{K}$, $\mathbf{K}_*$, $\mathbf{K}_{**}$ 계산
+
+$$\mathbf{K}_{\alpha}=\kappa\!\left(\mathbf{x}_{\alpha},\mathbf{x}_{\alpha}\right)$$
+
+$$\kappa\!\left(\mathbf{x}_{\alpha i},\mathbf{x}_{\alpha j}\right)=\exp\!\left(-\lambda
+\left(\mathbf{x}_{\alpha i}-\mathbf{x}_{\alpha j}\right)
+\left(\mathbf{x}_{\alpha i}-\mathbf{x}_{\alpha j}\right)^{\!\top}
+\right)$$
+
+- Mean, Covariance
+$$\begin{aligned}
+p\!\left(\mathbf{f}_{\alpha *}\mid\mathbf{x}_{\alpha *},\mathbf{x}_{\alpha},\mathbf{f}_{\alpha}\right) =
+\mathcal{N}\!\left(\mathbf{f}_{\alpha *}\mid\boldsymbol{\mu}_{\alpha *},\boldsymbol{\Sigma}_{\alpha *}
+\right),\\[0.3em]\mathbf{f}_{\alpha *} =\boldsymbol{\mu}_{\alpha *} 
+= \mathbf{K}_{\alpha *}^{\!\top}\left(\mathbf{K}_{\alpha}+\sigma^{2}\mathbf{I}\right)^{-1}\mathbf{f}_{\alpha},\\[0.3em]
+\boldsymbol{\Sigma}_{\alpha *} =\mathbf{K}_{\alpha **} - \mathbf{K}_{\alpha *}^{\!\top} 
+\left(\mathbf{K}_{\alpha}+\sigma^{2}\mathbf{I}\right)^{-1}
+\mathbf{K}_{\alpha *}
+\end{aligned}$$
+
+- 따라서, 각 voxel들에 대해 모두 처리한 후 모은 결과가 $P_{f_*} = (\mathbf{f}_ *, \mathbf{x}_*)$
+
+]
+
+
+.pull-right.nt-08[
+<div style="position:relative; display:inline-block; width:90%;">
+  <img src="fig/voxel_GPR_pseudo.png" style="display:block; width:100%;">
+  <div style="position:absolute; left:0.5%; top:80.0%; width:100%; height:20.0%; border:3px solid #e00000; border-radius:4px; box-sizing:border-box; pointer-events:none;"></div>
+</div>
+ 
+]
+
+---
+# Method
+
+.pull-left.f-80[
+- 그림만 보면 9개를 샘플링하고, Gaussian 구하는것 처럼 보여짐
+  - 하지만 code 구현을 보면 다름 
+- 4x3으로, 총 144개의 GPR points를 구하게 되어있고, voxel 당 16개의 gaussian을 만들게 되어있음
+
+.f-80[
+- 변수 차원 ($n_s=4$, $n_r=3$인 현재 공개 code 기준 basic_common.yaml)
+  - 전체 query grid: 한 변이 $n_sn_r=12$이므로, $\mathcal{P}_{\alpha *}\in\mathbb{R}^{(n_sn_r)^2\times3}=\mathbb{R}^{144\times3}$
+  - 하나의 subgrid $\beta$: $n_r^2=9$개의 3D point이므로, $(\mathcal{P}_{f*}^{\alpha})^{\beta}\in\mathbb{R}^{9\times3}$, $\mathbf{w}^{\beta}\in\mathbb{R}^{9}$
+  - Gaussian 중심: $\mathbf{p}^{\beta}\in\mathbb{R}^{3}$, centered point matrix: $\mathbf{Q}\in\mathbb{R}^{9\times3}$
+  - $\mathbf{Q}^{\top}\operatorname{diag}(\mathbf{w}^{\beta})\mathbf{Q}:\;(3\times9)(9\times9)(9\times3)\rightarrow\boldsymbol{\Phi}^{\beta}\in\mathbb{R}^{3\times3}$
+  - subgrid가 $n_s^2=16$개이므로, voxel당 Gaussian도 16개
+]
+
+]
+
+
+.pull-right[
+<img src="fig/livm_fig3.png" width:100%>
+]
+
+
+---
+# Method
+#### II. Efficient Initialization of 3D Gaussians
+
+.pull-left.f-65[
+
+- 각 Gaussian $\mathcal{M}_k$의 parameter
+  - 위치 $\mathbf{p}_k\in\mathbb{R}^{3}$, covariance $\boldsymbol{\Phi}_k\in\mathbb{R}^{3\times3}$
+  - opacity $\Lambda_k\in\mathbb{R}$, 0차 SH color $\mathbf{Y}_k\in\mathbb{R}^{3}$
+
+$$\mathcal{M}=\{(\mathcal{M}_k:\mathbf{p}_k,\boldsymbol{\Phi}_k,\Lambda_k,\mathbf{Y}_k)\mid k=1,\ldots,N\} \tag{4}$$
+
+- 기존 3DGS는 주변 point까지의 최근접 거리로 scale을 초기화하고, rotation은 일정한 quaternion으로 초기화
+
+$$\boldsymbol{\Phi}_k
+=\mathbf{R}_k\mathbf{S}_k\mathbf{S}_k^{\top}\mathbf{R}_k^{\top} \tag{5}$$
+
+- GS-LIVM은 Voxel-GPR의 예측 point와 uncertainty로 Gaussian의 위치와 shape을 직접 초기화
+  - 한 voxel을 $n_s\times n_s$개의 subgrid로 분할
+  - 각 subgrid의 한 변에 $n_r$개 point를 예측하므로, 전체 grid 한 변은 $n_sn_r$
+
+]
+
+.pull-right.f-65.nt-02[
+
+- $\beta$번째 subgrid의 $n_r^2$개 point에 inverse-variance weight를 부여
+
+$$w_i^{\beta}=\frac{1}{\Sigma_{*i}^{\alpha}}$$
+
+- weighted mean을 새 Gaussian의 중심으로 사용
+
+$$\mathbf{p}^{\beta}
+=\frac{\sum_{i=1}^{n_r^2}(\mathcal{P}_{f*}^{\alpha})_i^{\beta}w_i^{\beta}}
+{\sum_{i=1}^{n_r^2}w_i^{\beta}}$$
+
+- 중심을 뺀 point matrix $\mathbf{Q}=(\mathcal{P}_{f*}^{\alpha})^{\beta}-\mathbf{p}^{\beta}$로 weighted covariance 계산
+$(3 \times 9 \quad 9 \times 9 \quad 9 \times 3)$
+$$\boldsymbol{\Phi}^{\beta}
+=\frac{\mathbf{Q}^{\top}\operatorname{diag}(w_1^{\beta},\ldots,w_{n_r^2}^{\beta})\mathbf{Q}}
+{\sum_{i=1}^{n_r^2}w_i^{\beta}} \ \text{,} \mathbf{S}^{\beta}=\operatorname{diag}(\boldsymbol{\Phi}^{\beta}),\ \mathbf{R}^{\beta}=\mathbf{I}$$
+
+- $\mathbf{p}^{\beta}$를 최신 image에 projection하여 RGB/SH를 초기화
+- 결과적으로 voxel당 $n_s^2$개의 Gaussian 생성
+
+]
+
+
+---
+# Method
+#### III. Iterative photo-realistic Mapping Framework
+
+.pull-left.f-80[
+- Scene에 존재하는 Voxel Hash map은 4가지 유형으로 분류
+  - (a) : 아직 point가 없거나, point 수가 Voxel GPR 수행할 만큼 충분하지 않은 voxel
+  - (b) : points 수는 충분하지만 Gaussian map에 추가되지 않은 voxel (Mesh grid point만 생성됨)
+  - (c) : Gaussian map에 추가되었지만, active 상태. optimization 중
+  - (d) : Gaussian map에 추가되었고, 수렴이 완료된 상태
+- a 와 d는 처리속도를 위해 voxel GPR 모듈에서 처리하지 않음. 주요 대상은 b
+]
+
+
+.pull-right[
+<img src="fig/livm_fig4.png" width:100%>
+]
+
+
+
+---
+# Method
+
+.pull-left.f-70[
+
+#### Rendering & Delta Depth Similarity
+
+- Pose $\mathbf{T}$와 intrinsic $\boldsymbol{\pi}$로 Gaussian map $\mathcal{M}$을 rasterize하여 color $C$, depth $D$, silhouette $S$를 생성
+
+$$C=\sum_{i\in\mathcal{N}}\mathbf{c}_{i}\alpha_{i}
+\prod_{j=1}^{i-1}(1-\alpha_{j}$$
+
+- 인접한 두 camera $\mathcal{F}_{c}$와 $\mathcal{F}_{c+1}$에서 각각 $D,S$를 rendering
+  - $S\circ D$: Gaussian이 관측된 pixel만 남긴 masked depth
+  - $c$의 depth를 3D로 back-project한 뒤 $c+1$ 관점으로 transform/project하여 $D_{\mathcal{F}_{c+1}}$와 비교
+
+$$\begin{aligned}
+\mathcal{L}_{d}=\big\|&S_{\mathcal{F}_{c+1}}\!\circ D_{\mathcal{F}_{c+1}}\\
+&-\boldsymbol{\pi}_{\mathcal{F}_{c+1}}\mathbf{T}_{\mathcal{F}_{c+1}}
+\mathbf{T}_{\mathcal{F}_{c}}^{-1}\boldsymbol{\pi}_{\mathcal{F}_{c}}^{-1}
+(S_{\mathcal{F}_{c}}\!\circ D_{\mathcal{F}_{c}})\big\|_{1}
+\end{aligned}$$
+
+- 즉, 동일한 Gaussian map의 **camera 간 depth consistency**를 강제
+
+]
+
+.pull-right.f-70.nt-05[
+
+#### Structure Similarity & Training
+
+- 최신 LiDAR point $(P_f)_j$마다 가장 가까운 Gaussian을 찾고, 중심까지의 거리에서 Gaussian의 평균 scale $\overline{\mathbf{S}}_k$를 뺀 값을 평균
+
+$$\mathcal{L}_{p}=\frac{1}{n}\sum_{j=1}^{n}
+\min_{k\in\{1,\ldots,m\}}
+\left(\|(P_f)_j-\mathbf{p}_{k}\|_{2}-\overline{\mathbf{S}}_{k}\right)$$
+
+- Gaussian들이 실제 LiDAR point 부근으로 옮겨가도록(LiDAR를 신뢰)
+
+- Camera queue를 두 부분으로 유지
+  - $\mathcal{Q}_{\mathrm{curr}}$: 최근 $\mathcal{T}$개 camera 중 $k_{\mathrm{curr}}$개 선택
+  - $\mathcal{Q}_{\mathrm{hist}}$: 과거 camera 중 $k_{\mathrm{hist}}$개를 random 선택하여 catastrophic forgetting 방지
+
+$$\begin{aligned}
+\mathcal{L}={}&(1-\lambda_s)\|C-C_{gt}\|_1
++\lambda_s\mathcal{L}_{\mathrm{ssim}}\\
+&+\lambda_d\!\sum_{\mathcal{F}_*\in\{\mathcal{F}_{\mathrm{curr}},\mathcal{F}_{\mathrm{hist}}\}}
+\mathcal{L}_{d}(\mathcal{F}_*,\mathcal{F}_{*+1})
++\lambda_p\mathcal{L}_{p}
+\end{aligned}$$
+
+- Camera pose는 고정하고 Gaussian의 위치·색·opacity·scale·rotation을 최적화
+
+]
 
 
 
@@ -640,18 +904,107 @@ $$\mathcal{L}_d=
 ---
 # Method
 
+.f-70[
 
+- **Q : Voxel-GPR이 수렴했다는 기준은 무엇인가?**
+  - **A :** Gradient optimization의 수렴이 아니라, 새로운 LiDAR 관측을 누적하며 반복 수행한 GPR의 **voxel 평균 posterior variance**가 충분히 작아졌는지 판단
 
+- 각 query point의 posterior variance
 
+$$\boldsymbol{\Sigma}_{\alpha *}
+=\mathbf{K}_{\alpha **}
+-\mathbf{K}_{\alpha *}^{\top}
+(\mathbf{K}_{\alpha}+\sigma^2\mathbf{I})^{-1}
+\mathbf{K}_{\alpha *}$$
+
+- RBF kernel에서 $\operatorname{diag}(\mathbf{K}_{\alpha **})=1$이므로, code는 voxel의 평균 variance를 다음과 같이 계산
+
+$$\bar{v}_{\alpha}
+=1-\frac{1}{n_*}\sum_{i=1}^{n_*}
+\left[\mathbf{K}_{\alpha *}^{\top}
+(\mathbf{K}_{\alpha}+\sigma^2\mathbf{I})^{-1}
+\mathbf{K}_{\alpha *}\right]_{ii}$$
+
+- $\bar{v}_{\alpha}>\eta$: **Type (c), 미수렴**
+  - updated variance와 새 LiDAR point를 반영하여 Voxel-GPR을 다시 수행
+- $\bar{v}_{\alpha}\le\eta$: **Type (d), 수렴**
+  - 이후 해당 voxel은 Voxel-GPR 처리에서 제외
+  - 현재 공개 code의 threshold는 $\eta=0.30$
+
+]
 
 ---
 # Method
 
+.f-65[
 
+- $B$: 이번 CUDA batch에서 처리하는 updated voxel 수, $n$: voxel당 training point 수, $n_*=(n_sn_r)^2$: voxel당 query point 수
+  - 현재 공개 code 설정: $n=\tau=10$, $n_*=(4\times3)^2=144$
 
+- 하나의 voxel $\alpha$에서
+
+$$\mathbf{f}_{\alpha}\in\mathbb{R}^{n\times1},\qquad
+\mathbf{x}_{\alpha}\in\mathbb{R}^{n\times2},\qquad
+\mathbf{x}_{\alpha *}\in\mathbb{R}^{n_*\times2}$$
+
+$$\mathbf{K}_{\alpha}=\kappa(\mathbf{x}_{\alpha},\mathbf{x}_{\alpha})\in\mathbb{R}^{n\times n},\qquad
+\mathbf{K}_{\alpha *}=\kappa(\mathbf{x}_{\alpha},\mathbf{x}_{\alpha *})\in\mathbb{R}^{n\times n_*}$$
+
+$$\mathbf{K}_{\alpha **}=\kappa(\mathbf{x}_{\alpha *},\mathbf{x}_{\alpha *})\in\mathbb{R}^{n_*\times n_*},\qquad
+\mathbf{f}_{\alpha *}\in\mathbb{R}^{n_*\times1},\quad
+\boldsymbol{\Sigma}_{\alpha *}\in\mathbb{R}^{n_*\times n_*}$$
+
+- $B$개 voxel을 CUDA batch로 모으면
+
+$$\mathbf{f}:B\times n\times1,\quad
+\mathbf{K}:B\times n\times n,\quad
+\mathbf{K}_{*}:B\times n\times n_*,\quad
+\mathbf{K}_{**}:B\times n_*\times n_*$$
+
+$$\mathbf{f}_{*}:B\times n_*\times1,\qquad
+\boldsymbol{\Sigma}_{*}:B\times n_*\times n_*,\qquad
+P_{f*}:B\times n_*\times3$$
+
+- 현재 code 값으로는 $\mathbf{f}:B\times10$, $\mathbf{K}:B\times10\times10$, $\mathbf{K}_{*}:B\times10\times144$, $P_{f*}:B\times144\times3$
+  - 단, code는 $\mathbf{K}_{**}$를 따로 만들지 않고 $\mathbf{K}_{*}^{\top}\mathbf{K}^{-1}\mathbf{K}_{*}$를 저장한 뒤, posterior variance의 대각 원소를 $1-\operatorname{diag}(\cdot)$로 계산
+
+]
 
 
 ---
-# Method
+# Experiments
+
+<img src="fig/livm_tab1.png" width:90%>
+
+---
+# Experiments
+
+<img src="fig/livm_tab1.png" width:90%>
+
+
+<!-- ---
+# Experiments
+
+.pull-left.nt-03[
+<img src="fig/livm_fig5.png" width:0%>
+]
+
+.pull-right.nt-03[
+<img src="fig/livm_fig7.png" width:50%>
+] -->
+
+
+---
+# Conclusion
+- 앞선 방식들과 같이, pose를 적극적으로 refinement 하지 않는다.
+  - SLAM 이라고 해야하나? 그냥 Mapping하면서 SLAM이라고 하는듯
+- GPR을 사용한 Densification 전략
+  - Visual SfM, SPNet, GPR 3가지의 densification strategy
+- LiDAR 기반 geomtry loss, Silhouette image도 loss 사용
+  - LiDAR의 geometry 특성을 신뢰함
+- 
+
+
+
 <!-- xaringan::inf_mr('My_research/For_TVCG/Related_works.Rmd') -->
 <!-- pagedown::chrome_print('My_research/For_TVCG/Related_works.html') -->

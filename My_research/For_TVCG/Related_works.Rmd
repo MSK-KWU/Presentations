@@ -170,9 +170,8 @@ $$\mathbf D(\boldsymbol{\rho})=\sum_{i=1}^{n}d_i\alpha_iT_i,\qquad\mathbf O(\bol
 <img src="fig/coco_lic_result.png" width=70%>
 ]
 
-
 ---
-# Method
+# Method 
 ### III. Photo-Realistic Mapping using Gaussian Splatting
 #### i. Initialization of 3D Gaussians
 - Mapping module은 reconstruction을 수행하기 위해 tracking module로부터 camera pose, undistorted image, 3D points로 구성된다.
@@ -754,19 +753,12 @@ p\!\left(\mathbf{f}_{\alpha *}\mid\mathbf{x}_{\alpha *},\mathbf{x}_{\alpha},\mat
 ---
 # Method
 
-.pull-left.f-80[
+.pull-left[
 - 그림만 보면 9개를 샘플링하고, Gaussian 구하는것 처럼 보여짐
   - 하지만 code 구현을 보면 다름 
-- 4x3으로, 총 144개의 GPR points를 구하게 되어있고, voxel 당 16개의 gaussian을 만들게 되어있음
+- 4x4x(3x3)으로, 총 144개의 points를 sampling 되어있고, 따라서 voxel 당 16개의 gaussian을 만들게 되어있음
 
-.f-80[
-- 변수 차원 ($n_s=4$, $n_r=3$인 현재 공개 code 기준 basic_common.yaml)
-  - 전체 query grid: 한 변이 $n_sn_r=12$이므로, $\mathcal{P}_{\alpha *}\in\mathbb{R}^{(n_sn_r)^2\times3}=\mathbb{R}^{144\times3}$
-  - 하나의 subgrid $\beta$: $n_r^2=9$개의 3D point이므로, $(\mathcal{P}_{f*}^{\alpha})^{\beta}\in\mathbb{R}^{9\times3}$, $\mathbf{w}^{\beta}\in\mathbb{R}^{9}$
-  - Gaussian 중심: $\mathbf{p}^{\beta}\in\mathbb{R}^{3}$, centered point matrix: $\mathbf{Q}\in\mathbb{R}^{9\times3}$
-  - $\mathbf{Q}^{\top}\operatorname{diag}(\mathbf{w}^{\beta})\mathbf{Q}:\;(3\times9)(9\times9)(9\times3)\rightarrow\boldsymbol{\Phi}^{\beta}\in\mathbb{R}^{3\times3}$
-  - subgrid가 $n_s^2=16$개이므로, voxel당 Gaussian도 16개
-]
+
 
 ]
 
@@ -822,6 +814,12 @@ $$\boldsymbol{\Phi}^{\beta}
 
 ]
 
+---
+# Method
+
+.center.nt-02[
+<img src="fig/gpr_simple_text_v2.png" width="90%">
+]
 
 ---
 # Method
@@ -851,13 +849,11 @@ $$\boldsymbol{\Phi}^{\beta}
 #### Rendering & Delta Depth Similarity
 
 - Pose $\mathbf{T}$와 intrinsic $\boldsymbol{\pi}$로 Gaussian map $\mathcal{M}$을 rasterize하여 color $C$, depth $D$, silhouette $S$를 생성
-
+  - 여기서 silhouette map은 opacity map으로 생각하면 됨
 $$C=\sum_{i\in\mathcal{N}}\mathbf{c}_{i}\alpha_{i}
-\prod_{j=1}^{i-1}(1-\alpha_{j}$$
+\prod_{j=1}^{i-1}(1-\alpha_{j})$$
 
 - 인접한 두 camera $\mathcal{F}_{c}$와 $\mathcal{F}_{c+1}$에서 각각 $D,S$를 rendering
-  - $S\circ D$: Gaussian이 관측된 pixel만 남긴 masked depth
-  - $c$의 depth를 3D로 back-project한 뒤 $c+1$ 관점으로 transform/project하여 $D_{\mathcal{F}_{c+1}}$와 비교
 
 $$\begin{aligned}
 \mathcal{L}_{d}=\big\|&S_{\mathcal{F}_{c+1}}\!\circ D_{\mathcal{F}_{c+1}}\\
@@ -866,11 +862,21 @@ $$\begin{aligned}
 (S_{\mathcal{F}_{c}}\!\circ D_{\mathcal{F}_{c}})\big\|_{1}
 \end{aligned}$$
 
+
 - 즉, 동일한 Gaussian map의 **camera 간 depth consistency**를 강제
 
 ]
 
-.pull-right.f-70.nt-05[
+.pull-right.center.nt-10[
+
+<img src="fig/livm_depth_warp_flow_v5.png" width="90%">
+
+]
+
+---
+# Method
+
+.pull-left[
 
 #### Structure Similarity & Training
 
@@ -882,93 +888,31 @@ $$\mathcal{L}_{p}=\frac{1}{n}\sum_{j=1}^{n}
 
 - Gaussian들이 실제 LiDAR point 부근으로 옮겨가도록(LiDAR를 신뢰)
 
-- Camera queue를 두 부분으로 유지
-  - $\mathcal{Q}_{\mathrm{curr}}$: 최근 $\mathcal{T}$개 camera 중 $k_{\mathrm{curr}}$개 선택
-  - $\mathcal{Q}_{\mathrm{hist}}$: 과거 camera 중 $k_{\mathrm{hist}}$개를 random 선택하여 catastrophic forgetting 방지
+]
 
+.pull-right.center.nt-10[
+
+<img src="fig/livm_structure_similarity_lp.png" width="90%">
+
+]
+
+
+---
+# Method 
+- Camera queue를 두 부분으로 유지
+  - $\mathcal{Q}_{\mathrm{curr}}$: 최근 $\mathcal{T} = 50$개 camera 중 $k_{\mathrm{curr}} = 1$개 선택
+  - $\mathcal{Q}_{\mathrm{hist}}$: 과거 camera 중 $k_{\mathrm{hist}} = 1$개를 random 선택
+    - 코드에 따르면, $\mathcal{F}_{\mathrm{curr}}$, $\mathcal{F}_{\mathrm{hist}}$, $\mathcal{F}_{\mathrm{curr} + 1}$ 만 사용
+    - color, SSIM 은 3장 모두, geometry는 $\mathcal{F}_{\mathrm{hist}}$, $\mathcal{F}_{\mathrm{hist} + 1}$ pair만 계산
 $$\begin{aligned}
 \mathcal{L}={}&(1-\lambda_s)\|C-C_{gt}\|_1
-+\lambda_s\mathcal{L}_{\mathrm{ssim}}\\
-&+\lambda_d\!\sum_{\mathcal{F}_*\in\{\mathcal{F}_{\mathrm{curr}},\mathcal{F}_{\mathrm{hist}}\}}
++\lambda_s\mathcal{L}_{\mathrm{ssim}} +\lambda_d\!\sum_{\mathcal{F}_*\in\{\mathcal{F}_{\mathrm{curr}},\mathcal{F}_{\mathrm{hist}}\}}
 \mathcal{L}_{d}(\mathcal{F}_*,\mathcal{F}_{*+1})
 +\lambda_p\mathcal{L}_{p}
 \end{aligned}$$
 
-- Camera pose는 고정하고 Gaussian의 위치·색·opacity·scale·rotation을 최적화
+- Camera pose는 고정하고 Gaussian의 position·color·opacity·scale·rotation을 최적화
 
-]
-
-
-
-
----
-# Method
-
-.f-70[
-
-- **Q : Voxel-GPR이 수렴했다는 기준은 무엇인가?**
-  - **A :** Gradient optimization의 수렴이 아니라, 새로운 LiDAR 관측을 누적하며 반복 수행한 GPR의 **voxel 평균 posterior variance**가 충분히 작아졌는지 판단
-
-- 각 query point의 posterior variance
-
-$$\boldsymbol{\Sigma}_{\alpha *}
-=\mathbf{K}_{\alpha **}
--\mathbf{K}_{\alpha *}^{\top}
-(\mathbf{K}_{\alpha}+\sigma^2\mathbf{I})^{-1}
-\mathbf{K}_{\alpha *}$$
-
-- RBF kernel에서 $\operatorname{diag}(\mathbf{K}_{\alpha **})=1$이므로, code는 voxel의 평균 variance를 다음과 같이 계산
-
-$$\bar{v}_{\alpha}
-=1-\frac{1}{n_*}\sum_{i=1}^{n_*}
-\left[\mathbf{K}_{\alpha *}^{\top}
-(\mathbf{K}_{\alpha}+\sigma^2\mathbf{I})^{-1}
-\mathbf{K}_{\alpha *}\right]_{ii}$$
-
-- $\bar{v}_{\alpha}>\eta$: **Type (c), 미수렴**
-  - updated variance와 새 LiDAR point를 반영하여 Voxel-GPR을 다시 수행
-- $\bar{v}_{\alpha}\le\eta$: **Type (d), 수렴**
-  - 이후 해당 voxel은 Voxel-GPR 처리에서 제외
-  - 현재 공개 code의 threshold는 $\eta=0.30$
-
-]
-
----
-# Method
-
-.f-65[
-
-- $B$: 이번 CUDA batch에서 처리하는 updated voxel 수, $n$: voxel당 training point 수, $n_*=(n_sn_r)^2$: voxel당 query point 수
-  - 현재 공개 code 설정: $n=\tau=10$, $n_*=(4\times3)^2=144$
-
-- 하나의 voxel $\alpha$에서
-
-$$\mathbf{f}_{\alpha}\in\mathbb{R}^{n\times1},\qquad
-\mathbf{x}_{\alpha}\in\mathbb{R}^{n\times2},\qquad
-\mathbf{x}_{\alpha *}\in\mathbb{R}^{n_*\times2}$$
-
-$$\mathbf{K}_{\alpha}=\kappa(\mathbf{x}_{\alpha},\mathbf{x}_{\alpha})\in\mathbb{R}^{n\times n},\qquad
-\mathbf{K}_{\alpha *}=\kappa(\mathbf{x}_{\alpha},\mathbf{x}_{\alpha *})\in\mathbb{R}^{n\times n_*}$$
-
-$$\mathbf{K}_{\alpha **}=\kappa(\mathbf{x}_{\alpha *},\mathbf{x}_{\alpha *})\in\mathbb{R}^{n_*\times n_*},\qquad
-\mathbf{f}_{\alpha *}\in\mathbb{R}^{n_*\times1},\quad
-\boldsymbol{\Sigma}_{\alpha *}\in\mathbb{R}^{n_*\times n_*}$$
-
-- $B$개 voxel을 CUDA batch로 모으면
-
-$$\mathbf{f}:B\times n\times1,\quad
-\mathbf{K}:B\times n\times n,\quad
-\mathbf{K}_{*}:B\times n\times n_*,\quad
-\mathbf{K}_{**}:B\times n_*\times n_*$$
-
-$$\mathbf{f}_{*}:B\times n_*\times1,\qquad
-\boldsymbol{\Sigma}_{*}:B\times n_*\times n_*,\qquad
-P_{f*}:B\times n_*\times3$$
-
-- 현재 code 값으로는 $\mathbf{f}:B\times10$, $\mathbf{K}:B\times10\times10$, $\mathbf{K}_{*}:B\times10\times144$, $P_{f*}:B\times144\times3$
-  - 단, code는 $\mathbf{K}_{**}$를 따로 만들지 않고 $\mathbf{K}_{*}^{\top}\mathbf{K}^{-1}\mathbf{K}_{*}$를 저장한 뒤, posterior variance의 대각 원소를 $1-\operatorname{diag}(\cdot)$로 계산
-
-]
 
 
 ---
@@ -979,7 +923,7 @@ P_{f*}:B\times n_*\times3$$
 ---
 # Experiments
 
-<img src="fig/livm_tab1.png" width:90%>
+<img src="fig/livm_tab2.png" width:90%>
 
 
 <!-- ---

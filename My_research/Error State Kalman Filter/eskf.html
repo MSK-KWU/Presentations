@@ -141,16 +141,11 @@ count: false
 
 ---
 # Iterative Extended Kalman Filter (IEKF)
-.pull-left[
-  &lt;img src="fig/taylor_2nd_order.png" width="100%"&gt;
-]
 
-.pull-right[
 - 다음은 EKF를 반복적으로 수행하는 IEKF(Iterative Extended Kalman Filter)
 - EKF의 선형화는, 근사치를 구한 것이라 언급했었음
 - IEKF는 이 때 발생하는 근사치의 오차를 줄이기 위해 반복적으로 수행
   - 단, 뒤에서 다룰 ESKF에서 추정하는 error state는 아님
-]
 
 ---
 # IEKF: Commonality
@@ -258,10 +253,52 @@ count: false
 \simeq\mathbf{H}_{t,j}(\mathbf{x}_t-\boldsymbol{\mu}_{t,j})
 +\mathbf{v}_t
 \end{gathered}$$`
-
-
-
 ]
+
+
+---
+# IEKF: Correction step의 반복
+
+- Prediction에서 얻은 추정값으로 시작: `\((\boldsymbol{\mu}_{t,0}=\bar{\boldsymbol{\mu}}_t)\)`
+- 같은 시점 `\((t)\)`에서, 측정값 `\((\mathbf{z}_t)\)`과 처음 prior `\((\bar{\boldsymbol{\mu}}_t,\bar{\boldsymbol{\Sigma}}_t)\)`는 고정
+
+.f-90[
+#### `\((j=0)\)`: Prediction의 평균에서 첫 선형화
+
+`$$\mathbf{z}_t\simeq h(\bar{\boldsymbol{\mu}}_t)+\mathbf{H}_{t,0}(\mathbf{x}_t-\bar{\boldsymbol{\mu}}_t)+\mathbf{v}_t\quad\xrightarrow{\mathbf{K}_{t,0}}\quad\boldsymbol{\mu}_{t,1}=\bar{\boldsymbol{\mu}}_t+\mathbf{K}_{t,0}\left[\mathbf{z}_t-h(\bar{\boldsymbol{\mu}}_t)\right]$$`
+
+- 선형화한 모델에서 **Kalman gain `\((\mathbf{K}_{t,0})\)`을 계산하고 mean을 업데이트**: EKF와 같은 첫 보정
+
+#### `\((j=1)\)`: 보정한 추정값에서 다시 선형화
+
+`$$\mathbf{z}_t\simeq h(\boldsymbol{\mu}_{t,1})+\mathbf{H}_{t,1}(\mathbf{x}_t-\boldsymbol{\mu}_{t,1})+\mathbf{v}_t\quad\xrightarrow{\mathbf{K}_{t,1}}\quad\boldsymbol{\mu}_{t,2}=\bar{\boldsymbol{\mu}}_t+\mathbf{K}_{t,1}\left[\mathbf{z}_t-\left\{h(\boldsymbol{\mu}_{t,1})+\mathbf{H}_{t,1}(\bar{\boldsymbol{\mu}}_t-\boldsymbol{\mu}_{t,1})\right\}\right]$$`
+
+- `\((\boldsymbol{\mu}_{t,1})\)`에서 `\((\mathbf{H}_{t,1},\mathbf{K}_{t,1})\)`을 다시 계산하고, mean을 `\((\boldsymbol{\mu}_{t,2})\)`로 업데이트
+]
+
+---
+# IEKF: Correction step의 반복
+
+.f-90[
+`$$\mathbf{z}_t\simeq h(\boldsymbol{\mu}_{t,2})+\mathbf{H}_{t,2}(\mathbf{x}_t-\boldsymbol{\mu}_{t,2})+\mathbf{v}_t\quad\xrightarrow{\mathbf{K}_{t,2}}\quad\boldsymbol{\mu}_{t,3}=\bar{\boldsymbol{\mu}}_t+\mathbf{K}_{t,2}\left[\mathbf{z}_t-\left\{h(\boldsymbol{\mu}_{t,2})+\mathbf{H}_{t,2}(\bar{\boldsymbol{\mu}}_t-\boldsymbol{\mu}_{t,2})\right\}\right]$$`
+]
+
+&lt;img src="fig/ekf_iekf_relinearization_ipad_v4.png" style="display:block; margin:0 auto; max-width:100%; max-height:390px;" alt="EKF와 IEKF 비교. 접선은 해당 선형화점과 실제 상태 x t 위치까지 이어지고, 확대 원은 같은 x t에서의 곡선과 접선의 차이를 보여줌. 채운 검은 점은 x t, h(x t)이며 빈 검은 점은 마지막 추정값 mu t 3, h(mu t 3)으로 서로 구분됨."&gt;
+
+.center.f-80[
+`\(x_t\)`: **추정하려는 실제 상태** (미지수) · `\(\boldsymbol{\mu}_{t,3}\)`: 마지막 추정값 — 둘의 일치를 보장하지 않음.
+]
+
+&lt;!-- ???
+
+- 같은 시점 t에서 센서 측정 z_t와 prediction의 prior mean, covariance를 고정한다.
+- 빨강에서 파랑, 파랑에서 초록, 초록에서 마지막 점으로 가는 화살표는 각각 K_{t,0}, K_{t,1}, K_{t,2}를 사용한 mean update다.
+- j=1부터는 z_t-h(mu_{t,j})뿐 아니라 원래 prior와 현재 선형화점의 차이를 보정하는 항도 포함한다. 현재 평균에 K(z-h)만 계속 더하는 방식이 아니다.
+- 채운 검은 점의 좌표는 (x_t, h(x_t))다. x_t는 추정하려는 실제 상태로, 알고리즘은 그 값을 모른다. h(x_t)도 잡음이 포함된 센서 측정값 z_t와 구분한다.
+- 확대 원은 바로 그 x_t 위치에서의 곡선과 접선 사이의 차이를 확대한다. 실제 측정값과 예상 측정값의 차이 z_t-h(mu_{t,j})와 구분한다.
+- 빈 검은 점은 (mu_{t,3}, h(mu_{t,3}))로 마지막 추정값을 나타낸다. j=2에서 종료하면 이 추정값을 채택하며, 실제 상태 x_t와 일치한다고 가정하지 않는다.
+- 이동 방향과 간격은 개념도이며, 오차의 단조 감소나 실제 상태로의 수렴을 보장하지 않는다. --&gt;
+
 
 ---
 # IEKF: Kalman Gain · Update
@@ -305,14 +342,7 @@ count: false
 \right)^{-1}
 \end{gathered}$$`
 
-`$$\begin{gathered}
-\boldsymbol{\mu}_{t,j+1}=\bar{\boldsymbol{\mu}}_t
-+\mathbf{K}_{t,j}\Bigl[
-\mathbf{z}_t-h(\boldsymbol{\mu}_{t,j})
--\mathbf{H}_{t,j}
-\left(\bar{\boldsymbol{\mu}}_t-\boldsymbol{\mu}_{t,j}\right)
-\Bigr]
-\end{gathered}$$`
+`$$\boldsymbol{\mu}_{t,j+1}=\bar{\boldsymbol{\mu}}_t+\mathbf{K}_{t,j}\left[\mathbf{z}_t-\left\{h(\boldsymbol{\mu}_{t,j})+\mathbf{H}_{t,j}(\bar{\boldsymbol{\mu}}_t-\boldsymbol{\mu}_{t,j})\right\}\right]$$`
 
 `$$\left\|
 \boldsymbol{\mu}_{t,j+1}-\boldsymbol{\mu}_{t,j}
@@ -329,14 +359,6 @@ count: false
 - 마지막 반복 `\(j=n\)`까지 `\(\bar{\boldsymbol{\Sigma}}_t\)`를 고정하고, covariance는 수렴 후 한 번 갱신
 ]
 
----
-# IEKF: 그림으로 보면
-
-&lt;img src="fig/ekf_iekf_relinearization_ipad_v2.png" style="display:block; margin:0 auto; max-width:100%; max-height:460px;" alt="오른쪽 기준점에서 왼쪽의 고정된 x로 근사하며, IEKF는 기준점을 왼쪽 아래로 옮겨 같은 x에서의 근삿값을 개선하는 개념도"&gt;
-
-.center.f-80[
-두 방법 모두 1차 근사 · 같은 `\(x\)`에서 근삿값 비교 · IEKF는 오른쪽 기준점에서 왼쪽 아래로 선형화점 갱신
-]
 
 ---
 # ESKF (Error-State Kalman Filter)
@@ -568,9 +590,7 @@ f(\boldsymbol{\mu}_{t-1},\mathbf{u}_t)
 
 - 현재 nominal 기준의 error를 추정
 - 보정량을 nominal에 한 번 반영
-
 `$$\mathbf{x}_t=\hat{\mathbf{x}}_t+\delta\mathbf{x}_t$$`
-
 `$$\hat{\mathbf{x}}_{t|t}=\hat{\mathbf{x}}_t+\widehat{\delta\mathbf{x}}_t$$`
 ]
 
@@ -579,56 +599,35 @@ f(\boldsymbol{\mu}_{t-1},\mathbf{u}_t)
 
 - 현재 nominal 기준의 error를 다시 추정
 - 보정된 nominal에서 다시 선형화
-
 `$$\mathbf{x}_t=\hat{\mathbf{x}}_{t,j}+\delta\mathbf{x}_{t,j}$$`
-
 `$$\hat{\mathbf{x}}_{t,j+1}=\hat{\mathbf{x}}_{t,j}+\widehat{\delta\mathbf{x}}_{t,j}$$`
 ]
 
 &lt;div style="clear:both;"&gt;&lt;/div&gt;
 
-- 실제 error는 `\(\delta\mathbf{x}_{t,j}\)`, 이번 반복에서 추정한 보정량은 `\(\widehat{\delta\mathbf{x}}_{t,j}\)`
-
-.f-80[
-이하 앞에서 사용한 덧셈 error 표현과 additive noise 기준. 회전 좌표변환의 상세 내용은 별도 부록.
-]
 
 ---
 # IESKF: Commonality
 
 - Prediction step은 ESKF와 동일
 
-.pull-left.f-90[
+.pull-left[
 #### ESKF
-
 `$$\hat{\mathbf{x}}_t=f(\hat{\mathbf{x}}_{t-1},\mathbf{0},\mathbf{u}_t)$$`
-
 `$$\delta\mathbf{x}_t\simeq\mathbf{J}_t\delta\mathbf{x}_{t-1}+\mathbf{w}_t$$`
-
 `$$\overline{\delta\mathbf{x}}_t=\mathbf{J}_t\widehat{\delta\mathbf{x}}_{t-1}=\mathbf{0}$$`
-
 `$$\boldsymbol{\Sigma}_{t|t-1}=\mathbf{J}_t\boldsymbol{\Sigma}_{t-1|t-1}\mathbf{J}_t^\top+\mathbf{R}_t$$`
 ]
-
-.pull-right.f-90[
+.pull-right[
 #### IESKF
-
 `$$\hat{\mathbf{x}}_t=f(\hat{\mathbf{x}}_{t-1},\mathbf{0},\mathbf{u}_t)$$`
-
 `$$\delta\mathbf{x}_t\simeq\mathbf{J}_t\delta\mathbf{x}_{t-1}+\mathbf{w}_t$$`
-
 `$$\overline{\delta\mathbf{x}}_t=\mathbf{J}_t\widehat{\delta\mathbf{x}}_{t-1}=\mathbf{0}$$`
-
 `$$\boldsymbol{\Sigma}_{t|t-1}=\mathbf{J}_t\boldsymbol{\Sigma}_{t-1|t-1}\mathbf{J}_t^\top+\mathbf{R}_t$$`
 ]
 
 &lt;div style="clear:both;"&gt;&lt;/div&gt;
 
-- Prediction에서 얻은 nominal로 첫 반복을 시작
-
-`$$\hat{\mathbf{x}}_{t,0}=\hat{\mathbf{x}}_t$$`
-
-- 반복 중에는 **처음 prior와 같은 측정**을 유지. Prediction을 다시 수행하는 것이 아님
 
 ---
 # IESKF: Difference
@@ -649,61 +648,94 @@ f(\boldsymbol{\mu}_{t-1},\mathbf{u}_t)
 
 &lt;div style="clear:both;"&gt;&lt;/div&gt;
 
-- Nominal이 이동하면 **error의 기준도 바뀜**
 
-`$$\delta\mathbf{x}_t=(\hat{\mathbf{x}}_{t,j}-\hat{\mathbf{x}}_t)+\delta\mathbf{x}_{t,j}$$`
+---
+# IESKF: Correction step의 반복
+
+- Prediction에서 얻은 nominal로 시작: `\(\hat{\mathbf{x}}_{t,0}=\hat{\mathbf{x}}_t\)`
+- 같은 시점 `\(t\)`에서, 측정 `\(\mathbf{z}_t\)`와 처음 prior `\(\hat{\mathbf{x}}_t,\boldsymbol{\Sigma}_{t|t-1}\)`는 고정
+
+.f-90[
+#### `\(j=0\)`: 처음 nominal에서 선형화 → error mean 추정 → nominal 보정
+
+`$$\mathbf{z}_t\simeq h(\hat{\mathbf{x}}_{t,0},\mathbf{0})+\mathbf{H}_{t,0}\delta\mathbf{x}_{t,0}+\mathbf{v}_t\quad\xrightarrow{\mathbf{K}_{t,0}}\quad\widehat{\delta\mathbf{x}}_{t,0}=\mathbf{K}_{t,0}\left[\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,0},\mathbf{0})\right]$$`
+
+`$$\hat{\mathbf{x}}_{t,1}=\hat{\mathbf{x}}_{t,0}+\widehat{\delta\mathbf{x}}_{t,0}$$`
+
+#### `\(j=1\)`: 보정한 nominal에서 다시 선형화하고, 보정량을 다시 추정
+
+`$$\mathbf{z}_t\simeq h(\hat{\mathbf{x}}_{t,1},\mathbf{0})+\mathbf{H}_{t,1}\delta\mathbf{x}_{t,1}+\mathbf{v}_t\quad\xrightarrow{\mathbf{K}_{t,1}}\quad\widehat{\delta\mathbf{x}}_{t,1}=(\hat{\mathbf{x}}_t-\hat{\mathbf{x}}_{t,1})+\mathbf{K}_{t,1}\left[\mathbf{z}_t-\left\{h(\hat{\mathbf{x}}_{t,1},\mathbf{0})+\mathbf{H}_{t,1}(\hat{\mathbf{x}}_t-\hat{\mathbf{x}}_{t,1})\right\}\right]$$`
+
+`$$\hat{\mathbf{x}}_{t,2}=\hat{\mathbf{x}}_{t,1}+\widehat{\delta\mathbf{x}}_{t,1}$$`
+]
+
+.f-80[
+`\(\hat{\mathbf{x}}_t-\hat{\mathbf{x}}_{t,1}\)`: **같은 prior를 현재 nominal 기준으로 표현한 error mean**. 첫 반복 `\(j=0\)`에서는 기준점이 같아 0.
+]
+
+&lt;!--
+Additive state/error coordinates: x_t = xhat_{t,j} + delta x_{t,j}.
+The actual error changes reference according to delta x_{t,j+1} = delta x_{t,j} - delta xhat_{t,j}; it is not known to be zero.
+Each delta xhat is computed using the original prior and same measurement, not by treating the previous iteration's posterior as a new prior.
+--&gt;
+
 
 
 ---
 # IESKF: Kalman Gain · Update
 
-.pull-left.f-85[
-#### ESKF
+- 매 반복에서 `\(\mathbf{H}_{t,j},\mathbf{K}_{t,j}\)`를 다시 계산. 처음 prior covariance `\(\boldsymbol{\Sigma}_{t|t-1}\)`는 유지
 
-`$$\mathbf{K}_t=\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_t^\top(\mathbf{H}_t\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_t^\top+\mathbf{Q}_t)^{-1}$$`
+.f-85[
+`$$\mathbf{H}_{t,j}=\left.\frac{\partial h(\hat{\mathbf{x}}_{t,j},\delta\mathbf{x}_{t,j})}{\partial\delta\mathbf{x}_{t,j}}\right|_{\delta\mathbf{x}_{t,j}=\mathbf{0}},\qquad\mathbf{K}_{t,j}=\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_{t,j}^\top(\mathbf{H}_{t,j}\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_{t,j}^\top+\mathbf{Q}_t)^{-1}$$`
 ]
-
-.pull-right.f-85[
-#### IESKF
-
-`$$\mathbf{K}_{t,j}=\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_{t,j}^\top(\mathbf{H}_{t,j}\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_{t,j}^\top+\mathbf{Q}_t)^{-1}$$`
-]
-
-&lt;div style="clear:both;"&gt;&lt;/div&gt;
-
-- ESKF의 error mean update
-
-`$$\widehat{\delta\mathbf{x}}_t=\overline{\delta\mathbf{x}}_t+\mathbf{K}_t[\mathbf{z}_t-h(\hat{\mathbf{x}}_t,\mathbf{0})],\qquad \overline{\delta\mathbf{x}}_t=\mathbf{0}$$`
-
-- IESKF는 **처음 prior와 현재 nominal의 차이**도 반영
 
 .f-90[
-`$$\widehat{\delta\mathbf{x}}_{t,j}=\mathbf{K}_{t,j}[\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0})]-(\mathbf{I}-\mathbf{K}_{t,j}\mathbf{H}_{t,j})(\hat{\mathbf{x}}_{t,j}-\hat{\mathbf{x}}_t)$$`
+#### `\(j=2\)`: 새 nominal에서 보정량을 추정하고, 다음 nominal로 반영
+
+`$$\mathbf{z}_t\simeq h(\hat{\mathbf{x}}_{t,2},\mathbf{0})+\mathbf{H}_{t,2}\delta\mathbf{x}_{t,2}+\mathbf{v}_t\quad\xrightarrow{\mathbf{K}_{t,2}}\quad\widehat{\delta\mathbf{x}}_{t,2}=(\hat{\mathbf{x}}_t-\hat{\mathbf{x}}_{t,2})+\mathbf{K}_{t,2}\left[\mathbf{z}_t-\left\{h(\hat{\mathbf{x}}_{t,2},\mathbf{0})+\mathbf{H}_{t,2}(\hat{\mathbf{x}}_t-\hat{\mathbf{x}}_{t,2})\right\}\right]$$`
+
+`$$\hat{\mathbf{x}}_{t,3}=\hat{\mathbf{x}}_{t,2}+\widehat{\delta\mathbf{x}}_{t,2}$$`
 ]
 
-`$$\hat{\mathbf{x}}_{t,j+1}=\hat{\mathbf{x}}_{t,j}+\widehat{\delta\mathbf{x}}_{t,j}$$`
+- Nominal update까지 정리하면 **앞의 IEKF와 같은 형태**
 
 .f-90[
-`\(j=0\)`에서는 `\(\hat{\mathbf{x}}_{t,0}=\hat{\mathbf{x}}_t\)`이므로 뒤의 보정항이 0: ESKF와 같은 첫 보정. 이후에는 새 nominal에서 `\(\mathbf{H}_{t,j}\)`와 `\(\mathbf{K}_{t,j}\)`를 다시 계산하며, `\(\boldsymbol{\Sigma}_{t|t-1}\)`는 유지.
+`$$\hat{\mathbf{x}}_{t,j+1}=\hat{\mathbf{x}}_{t,j}+\widehat{\delta\mathbf{x}}_{t,j}=\hat{\mathbf{x}}_t+\mathbf{K}_{t,j}\left[\mathbf{z}_t-\left\{h(\hat{\mathbf{x}}_{t,j},\mathbf{0})+\mathbf{H}_{t,j}(\hat{\mathbf{x}}_t-\hat{\mathbf{x}}_{t,j})\right\}\right]$$`
 ]
+
+
+
+&lt;!--
+Eq. (94), J_retraction = I and H_v = I, with the deck's measurement covariance Q_t:
+delta xhat_j = K_j[z_t-h(xhat_j,0)] - (I-K_j H_j)(xhat_j-xhat_prior).
+Rearrange, without changing the value:
+delta xhat_j = (xhat_prior-xhat_j) + K_j[z_t-{h(xhat_j,0)+H_j(xhat_prior-xhat_j)}].
+This coordinate-change Jacobian is not the motion Jacobian J_t.
+--&gt;
 
 ---
 # IESKF: 그림으로 보면
 
-&lt;img src="fig/ieskf_nominal_iteration_ipad.png" width="100%" style="display:block;max-height:400px;object-fit:contain;" alt="같은 시점에서 nominal을 보정하고 새 nominal에서 재선형화하여 error 보정량을 다시 추정하는 IESKF 반복 개념도"&gt;
+&lt;img src="fig/ieskf_nominal_iteration_ipad_v2.png" width="100%" style="display:block;max-height:440px;object-fit:contain;" alt="IESKF의 j=1 업데이트: 주황색 오른쪽 화살표는 현재 nominal에서 처음 prior nominal까지의 기준 차이, 파란색 왼쪽 화살표는 현재 nominal에서 다음 nominal로 반영할 추정 보정량. 아래에 prior 기준 차이를 포함한 error mean과 nominal update 수식을 표시"&gt;
 
-.f-90[
-- 화살표는 실제 error가 아니라, **현재 nominal에서 추정한 보정량** `\(\widehat{\delta\mathbf{x}}_{1,j}\)`
-- `\(j=2\)`에서 보정량이 충분히 작아 종료한 예: 최종 nominal은 `\(\hat{\mathbf{x}}_{1,3}\)`
+.f-85[
+- 주황색 `\(\hat{\mathbf{x}}_t-\hat{\mathbf{x}}_{t,1}\)`: **현재 nominal → 처음 prior**의 기준 차이. 실제 error `\(\mathbf{x}_t-\hat{\mathbf{x}}_{t,1}\)`과 다름.
 ]
 
-???
-- `\(t=1\)`은 고정이고, `\(j\)`만 증가한다. 실제 상태 `\(\mathbf{x}_1\)`을 알고 움직이는 그림이 아니다.
-- 빨강: `\(\hat{\mathbf{x}}_{1,0}\)`에서 선형화하고 보정량을 추정하여 `\(\hat{\mathbf{x}}_{1,1}\)`로 이동한다.
-- 파랑: 새 기준 `\(\hat{\mathbf{x}}_{1,1}\)`에서 Jacobian과 gain을 다시 계산하고 다음 보정량을 추정한다.
-- 초록: `\(\hat{\mathbf{x}}_{1,2}\)`에서 구한 보정량을 반영한 뒤 종료 조건을 확인한다. `\(n=2\)`이면 최종 추정값은 `\(\hat{\mathbf{x}}_{1,3}\)`이다.
-- 접선은 측정 모델의 국소 선형화이고, 수평 화살표는 prior까지 반영한 상태 보정량이다. 접선만으로 실제값을 찾아가는 Newton root-finding 그림이 아니다.
-- 보정량이 줄어드는 예시일 뿐, 매 반복 감소나 실제값으로의 수렴을 보장하지 않는다.
+&lt;!-- ???
+- 같은 시점 `\(t\)`에서 반복 횟수 `\(j\)`만 증가한다. 측정 `\(\mathbf{z}_t\)`, 처음 prior nominal `\(\hat{\mathbf{x}}_t\)`, prior covariance `\(\boldsymbol{\Sigma}_{t|t-1}\)`는 고정한다.
+- 빨강은 처음 prediction한 nominal `\(\hat{\mathbf{x}}_{t,0}=\hat{\mathbf{x}}_t\)`, 파랑은 현재 nominal `\(\hat{\mathbf{x}}_{t,1}\)`, 초록은 보정 후 nominal `\(\hat{\mathbf{x}}_{t,2}\)`이다. 곡선 위 점의 세로 좌표는 각 nominal에서의 `\(h(\hat{\mathbf{x}}_{t,j},\mathbf{0})\)`이며, 실제 상태를 안다는 뜻이 아니다.
+- 주황색 화살표는 현재 nominal을 원점으로 보았을 때 같은 prior의 mean이 어디 있는지 보여준다. prior로 되돌아가는 update가 아니다. `\(\hat{\mathbf{x}}_t\)`의 hat을 빼면 모르는 실제 error와 혼동하게 된다.
+- 같은 차이가 error mean의 첫 항과 중괄호 안에 모두 들어간다. `\(\mathbf{H}_{t,1}(\hat{\mathbf{x}}_t-\hat{\mathbf{x}}_{t,1})\)`은 이 기준 차이를 선형화한 observation 공간으로 옮기는 항이다.
+
+`$$\widehat{\delta\mathbf{x}}_{t,1}=(\hat{\mathbf{x}}_t-\hat{\mathbf{x}}_{t,1})+\mathbf{K}_{t,1}\left[\mathbf{z}_t-\left\{h(\hat{\mathbf{x}}_{t,1},\mathbf{0})+\mathbf{H}_{t,1}(\hat{\mathbf{x}}_t-\hat{\mathbf{x}}_{t,1})\right\}\right]$$`
+
+`$$\hat{\mathbf{x}}_{t,2}=\hat{\mathbf{x}}_{t,1}+\widehat{\delta\mathbf{x}}_{t,1}$$`
+
+- 파란색 화살표는 위 수식 전체로 계산한 보정량이다. 이 예에서는 왼쪽으로 이동한다. 주황색 기준 차이 자체나 모르는 실제 error와 같다고 두지 않는다.
+- 새 nominal에서 Jacobian과 gain을 다시 계산하고 반복한다. 종료 시 마지막 Jacobian과 gain으로 covariance를 한 번 갱신한다.
+- 접선만으로 실제값을 찾아가는 Newton root-finding 그림이 아니다. 매 반복 보정량 감소나 실제값으로의 수렴을 보장하지 않는다. --&gt;
 
 ---
 # IESKF: 수렴 · Covariance · Reset
@@ -736,9 +768,15 @@ f(\boldsymbol{\mu}_{t-1},\mathbf{u}_t)
 
 - 0이 되는 것은 error의 **추정 mean**. 불확실성은 남고, 덧셈 좌표에서는 reset으로 covariance가 변하지 않음
 
-.f-80[
-MAP·상세 유도·회전 좌표변환: [별도 부록](ieskf_appendix.html)
-]
+
+---
+# Conclusion
+- KF는 Linear system에서의 optimal state estimation
+- EKF는 Non-linear system에서의 approximate state estimation
+- IEKF는 Non-linear system에서의 approximate state estimation with repeated linearization
+- ESKF는 Non-linear system에서의 approximate state estimation with error-state representation
+- IESKF는 Non-linear system에서의 approximate state estimation with error-state representation and repeated
+
 
 &lt;!-- xaringan::inf_mr('My_research/Error State Kalman Filter/eskf.Rmd') --&gt;
 &lt;!-- pagedown::chrome_print('My_sresearch/Error State Kalman Filter/eskf.html') --&gt;

@@ -762,13 +762,6 @@ This coordinate-change Jacobian is not the motion Jacobian J_t.
 
 &lt;div style="clear:both;"&gt;&lt;/div&gt;
 
-- 최종 nominal에 보정량을 반영한 뒤, **새 nominal을 기준으로 error를 reset**
-
-`$$\delta\mathbf{x}_t^{\mathrm{new}}=\delta\mathbf{x}_{t,n}-\widehat{\delta\mathbf{x}}_{t,n},\qquad \widehat{\delta\mathbf{x}}_t^{\mathrm{new}}=\mathbf{0}$$`
-
-- 0이 되는 것은 error의 **추정 mean**. 불확실성은 남고, 덧셈 좌표에서는 reset으로 covariance가 변하지 않음
-
-
 ---
 # Conclusion
 - KF는 Linear system에서의 optimal state estimation

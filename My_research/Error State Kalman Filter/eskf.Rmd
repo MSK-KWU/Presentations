@@ -147,9 +147,9 @@ $$\begin{gathered}
 
 
 ---
-# Iterative Extended Kalman Filter (IEKF)
+# Iterated Extended Kalman Filter (IEKF)
 
-- 다음은 EKF를 반복적으로 수행하는 IEKF(Iterative Extended Kalman Filter)
+- 다음은 EKF의 correction을 반복적으로 수행하는 IEKF(Iterated Extended Kalman Filter)
 - EKF의 선형화는, 근사치를 구한 것이라 언급했었음
 - IEKF는 이 때 발생하는 근사치의 오차를 줄이기 위해 반복적으로 수행
   - 단, 뒤에서 다룰 ESKF에서 추정하는 error state는 아님
@@ -383,14 +383,14 @@ $$\mathbf{x}_t = \hat{\mathbf{x}}_t +  \delta\mathbf{x}_t$$
 ---
 # ESKF 
 
-- 즉, 구하고자 하는 state는 결국 non-linear이다.
-  - 다만, error state는 linear!
-  - EKF는 nominal state와 error state의 합을 linearization을 통해 state estimation
-      - 연산속도가 error state만 추정했을 때 대비 느리고, 오차도 계속 누적됨
+- State를 전파하는 motion model은 비선형
+  - Error dynamics는 작은 error 주변에서 **1차 선형 모델로 근사**
+  - EKF는 전체 state에 대해, ESKF는 nominal 기준의 error에 대해 선형화
+      - 속도·정확도는 모델과 구현에 따라 달라지며, ESKF에서도 오차가 누적될 수 있음
   
 - 따라서, EKF 대비 ESKF의 장점은 아래와같음
   - Minimal representation: 자세 오차를 최소 자유도로 표현하여 불필요한 파라미터와 특이점 문제를 줄임
-  - Stable linearization: Error state가 원점 근처의 작은 값으로 유지되어 선형화가 쉽고 정확함
+  - Stable linearization: Error가 원점 근처의 작은 값으로 유지되는 조건에서 1차 근사를 적용하기 유리함
 
 
 ---
@@ -407,8 +407,7 @@ $$\hat{\mathbf{x}}_t+\delta\mathbf{x}_t=f(\hat{\mathbf{x}}_{t-1},
 - Error-state Observation Model:
 $$\mathbf{z}_t =h(\hat{\mathbf{x}}_t,\delta\mathbf{x}_t) + \mathbf{v}_t \text{,} \quad \mathbf{v}_t\sim\mathcal{N}(\mathbf{0},\mathbf{Q}_t)$$
     - Taylor expansion : 
-    $$h(\hat{\mathbf{x}}_t,\delta\mathbf{x}_t) 
-    \approx h(\hat{\mathbf{x}}_t,\widehat{\delta\mathbf{x}}_t) + \mathbf{H}_t(\delta\mathbf{x}_t - \widehat{\delta\mathbf{x}}_t)$$
+    $$h(\hat{\mathbf{x}}_t,\delta\mathbf{x}_t)\approx h(\hat{\mathbf{x}}_t,\overline{\delta\mathbf{x}}_t)+\mathbf{H}_t(\delta\mathbf{x}_t-\overline{\delta\mathbf{x}}_t)$$
 ---
 # ESKF
 #### Prediction Step
@@ -612,6 +611,10 @@ $$\hat{\mathbf{x}}_{t,j+1}=\hat{\mathbf{x}}_{t,j}+\widehat{\delta\mathbf{x}}_{t,
 
 <div style="clear:both;"></div>
 
+.f-80[
+이하 수식은 **state와 error를 덧셈으로 합성하는 좌표**와 additive noise를 가정. 회전의 일반적인 합성·좌표변환은 여기서 다루지 않음.
+]
+
 
 ---
 # IESKF: Commonality
@@ -775,7 +778,7 @@ $$\boldsymbol{\Sigma}_{t|t}=(\mathbf{I}-\mathbf{K}_{t,n}\mathbf{H}_{t,n})\boldsy
 - EKF는 Non-linear system에서의 approximate state estimation
 - IEKF는 Non-linear system에서의 approximate state estimation with repeated linearization
 - ESKF는 Non-linear system에서의 approximate state estimation with error-state representation
-- IESKF는 Non-linear system에서의 approximate state estimation with error-state representation and repeated
+- IESKF는 Non-linear system에서의 approximate state estimation with error-state representation and repeated linearization
 
 
 <!-- xaringan::inf_mr('My_research/Error State Kalman Filter/eskf.Rmd') -->

@@ -1,0 +1,163 @@
+---
+title: "IESKF: 상세 유도 부록"
+subtitle: 
+author: |
+  Minsu Kim
+ 
+# author: |
+#   <span class="author-line">Xiaobiao Du<sup>1,3</sup>, Yida Wang<sup>3</sup>, KunZhan<sup>3</sup>, XinYu<sup>2∗</sup>
+#   <span class="affiliation"><sup>1</sup>University of Technology Sydney, <sup>2</sup>Adelaide University, <sup>3</sup>Li Auto Inc</span>
+date: 2026.08.20
+
+
+output:
+  xaringan::moon_reader:
+    lib_dir: libs
+    css:
+      - default
+      - default-fonts
+      - swan/swan.css
+      - swan/tachyons_ext.css
+      - logo-bottom-right.css
+    includes:
+      after_body: logo-bottom-right.html
+    nature:
+      highlightStyle: github  
+      highlightLines: true
+      countIncrementalSlides: false
+      ratio: '16:9'
+  pdf_document:
+    latex_engine: xelatex
+
+
+---
+
+<!-- 2026-09-17: eskf.Rmd의 IESKF 본문에서 옮긴 상세 유도. 수식 내용은 보존하고 수식 줄바꿈만 정리. -->
+
+# IESKF: MAP으로 써보면
+
+- Posterior를 크게 하는 error를 찾는 것은, 아래 두 항의 합을 작게 하는 것
+  - Measurement: 측정값과 선형화한 예상 측정값의 차이
+  - Prior: 보정한 상태와 처음 prediction한 상태의 차이
+
+.f-90[
+$$\begin{gathered} \widehat{\delta\mathbf{x}}_{t,j} =\underset{\delta\mathbf{x}_{t,j}}{\operatorname{arg\,min}}\;\Bigl[ \left\|\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0}) -\mathbf{H}_{t,j}\delta\mathbf{x}_{t,j}\right\|^2_{ \mathbf{Q}_t^{-1}} +\left\|\hat{\mathbf{x}}_{t,j}-\hat{\mathbf{x}}_t+\delta\mathbf{x}_{t,j}\right\|^2_{ \boldsymbol{\Sigma}_{t|t-1}^{-1}}\Bigr] \end{gathered}$$
+
+$$\|\mathbf{a}\|^2_{\mathbf{W}}=\mathbf{a}^{\top}\mathbf{W}\mathbf{a}$$
+]
+
+- 각 항은 covariance의 역행렬로 가중. 불확실성이 작을수록 더 강하게 반영
+- 매 반복에서 같은 측정과 같은 prior를 사용하며, 선형화점만 갱신
+
+
+---
+
+# IESKF: 미분해서 정리해 봅시다
+
+- 앞 목적함수를 $\delta\mathbf{x}_{t,j}$로 미분하고 0으로 두면
+
+.f-85[
+$$\begin{gathered} \mathbf{0}=-\mathbf{H}_{t,j}^{\top} \mathbf{Q}_t^{-1} \Bigl[\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0}) -\mathbf{H}_{t,j}\widehat{\delta\mathbf{x}}_{t,j}\Bigr] +\boldsymbol{\Sigma}_{t|t-1}^{-1} \Bigl[\hat{\mathbf{x}}_{t,j}-\hat{\mathbf{x}}_t+\widehat{\delta\mathbf{x}}_{t,j}\Bigr] \end{gathered}$$
+]
+
+- $\widehat{\delta\mathbf{x}}_{t,j}$가 있는 항을 왼쪽으로 모으면
+
+.f-85[
+$$\begin{gathered} \Bigl[\boldsymbol{\Sigma}_{t|t-1}^{-1} +\mathbf{H}_{t,j}^{\top}\mathbf{Q}_t^{-1} \mathbf{H}_{t,j}\Bigr]\widehat{\delta\mathbf{x}}_{t,j}\\ =\mathbf{H}_{t,j}^{\top}\mathbf{Q}_t^{-1} \Bigl[\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0})\Bigr] -\boldsymbol{\Sigma}_{t|t-1}^{-1}\left(\hat{\mathbf{x}}_{t,j}-\hat{\mathbf{x}}_t\right) \end{gathered}$$
+]
+
+- 이번 반복 안에서는 Jacobian을 고정. 마지막 항은 **이동한 prior mean** 때문에 남음
+
+
+---
+
+# IESKF: Kalman Gain · Update
+
+- 역행렬 보조정리로 정리하면, 앞에서 구한 Kalman gain과 같은 구조
+
+.f-85[
+$$\begin{gathered} \mathbf{K}_{t,j} =\Bigl[\boldsymbol{\Sigma}_{t|t-1}^{-1} +\mathbf{H}_{t,j}^{\top}\mathbf{Q}_t^{-1}\mathbf{H}_{t,j}\Bigr]^{-1} \mathbf{H}_{t,j}^{\top}\mathbf{Q}_t^{-1}\\ =\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_{t,j}^{\top} \Bigl(\mathbf{H}_{t,j}\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_{t,j}^{\top} +\mathbf{Q}_t\Bigr)^{-1} \end{gathered}$$
+
+$$\begin{gathered} \widehat{\delta\mathbf{x}}_{t,j} =\mathbf{K}_{t,j}\Bigl[\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0})\Bigr] -\left(\mathbf{I}-\mathbf{K}_{t,j}\mathbf{H}_{t,j}\right) \left(\hat{\mathbf{x}}_{t,j}-\hat{\mathbf{x}}_t\right) \end{gathered}$$
+]
+
+$$\hat{\mathbf{x}}_{t,j+1}=\hat{\mathbf{x}}_{t,j}+\widehat{\delta\mathbf{x}}_{t,j}$$
+
+- 측정 차이의 보정 + 처음 prediction한 상태와의 차이 보정
+- Additive measurement noise의 covariance는 $\mathbf{Q}_t$
+
+
+---
+
+# IESKF: 앞의 IEKF와 연결하면
+
+- Error의 보정량을 nominal state에 더하고, 항을 정리하면
+
+.f-90[
+$$\begin{gathered} \hat{\mathbf{x}}_{t,j+1} =\hat{\mathbf{x}}_{t,j} +\mathbf{K}_{t,j}\Bigl[\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0})\Bigr] -\left(\mathbf{I}-\mathbf{K}_{t,j}\mathbf{H}_{t,j}\right) \left(\hat{\mathbf{x}}_{t,j}-\hat{\mathbf{x}}_t\right)\\ =\hat{\mathbf{x}}_t+\mathbf{K}_{t,j}\Bigl[ \mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0}) -\mathbf{H}_{t,j}\left(\hat{\mathbf{x}}_t-\hat{\mathbf{x}}_{t,j}\right)\Bigr] \end{gathered}$$
+]
+
+- $\hat{\mathbf{x}}_t\leftrightarrow\bar{\boldsymbol{\mu}}_t$, $\hat{\mathbf{x}}_{t,j}\leftrightarrow\boldsymbol{\mu}_{t,j}$로 보면 IEKF와 같은 형태
+- 같은 벡터 좌표·모델·prior를 사용하면 결과도 동일. IESKF는 이를 **현재 nominal state에 더할 error**로 풀어 쓴 것
+- 회전처럼 state와 error의 표현이 다르면, 다음의 좌표변환이 필요
+
+
+---
+
+# IESKF: 회전 상태에서는?
+
+- $\boxplus$: error를 state에 반영, $\boxminus$: 두 state의 차이를 error 좌표로 표현
+
+$$\mathbf{x}_t =\hat{\mathbf{x}}_{t,j}\boxplus\delta\mathbf{x}_{t,j}$$
+
+- 현재 error를 처음 prediction한 상태의 error 좌표로 옮기면
+
+$$\begin{gathered} \delta\mathbf{x}_t =\left(\hat{\mathbf{x}}_{t,j}\boxplus\delta\mathbf{x}_{t,j}\right)\boxminus\hat{\mathbf{x}}_t\\ \simeq\left(\hat{\mathbf{x}}_{t,j}\boxminus\hat{\mathbf{x}}_t\right) +\mathbf{J}^{\mathrm{r}}_{t,j}\delta\mathbf{x}_{t,j} \end{gathered}$$
+
+$$\mathbf{J}^{\mathrm{r}}_{t,j} =\left.\frac{\partial\left[ (\hat{\mathbf{x}}_{t,j}\boxplus\delta\mathbf{x}_{t,j})\boxminus\hat{\mathbf{x}}_t \right]}{\partial\delta\mathbf{x}_{t,j}}\right|_{\delta\mathbf{x}_{t,j}=\mathbf{0}}$$
+
+- 논문의 $\mathbf{J}_{t,j}$를 여기서는 $\mathbf{J}^{\mathrm{r}}_{t,j}$로 표기: **motion Jacobian $\mathbf{J}_t$와 다른 행렬**
+- 앞의 단순 덧셈 좌표에서는 $\boxplus=+$, $\boxminus=-$, $\mathbf{J}^{\mathrm{r}}_{t,j}=\mathbf{I}$
+
+
+---
+
+# IESKF: 현재 좌표의 Prior · Gain
+
+- 처음 얻은 prior를 현재 error 좌표로 변환. 새로운 measurement update는 아님
+
+.f-90[
+$$\begin{gathered} \delta\mathbf{x}_{t,j}\sim\mathcal{N}\Bigl( -(\mathbf{J}^{\mathrm{r}}_{t,j})^{-1} (\hat{\mathbf{x}}_{t,j}\boxminus\hat{\mathbf{x}}_t),\; \boldsymbol{\Sigma}_{t|t-1,j}\Bigr),\\ \boldsymbol{\Sigma}_{t|t-1,j} =(\mathbf{J}^{\mathrm{r}}_{t,j})^{-1}\boldsymbol{\Sigma}_{t|t-1} (\mathbf{J}^{\mathrm{r}}_{t,j})^{-\top} \end{gathered}$$
+]
+
+- 끝의 $j$는 **같은 prior covariance를 표현하는 좌표**를 구분
+
+.f-90[
+$$\begin{gathered} \mathbf{K}_{t,j}=\boldsymbol{\Sigma}_{t|t-1,j}\mathbf{H}_{t,j}^{\top}\cdot\Bigl(\mathbf{H}_{t,j}\boldsymbol{\Sigma}_{t|t-1,j}\mathbf{H}_{t,j}^{\top} +\mathbf{Q}_t\Bigr)^{-1} \end{gathered}$$
+]
+
+- $\mathbf{H}_{t,j}$는 현재 error 좌표에서의 미분. $\mathbf{J}^{\mathrm{r}}_{t,j}$는 현재 좌표와 prior 좌표 사이의 미분
+
+
+---
+
+# IESKF: 일반형 Update · Reset
+
+.f-85[
+$$\begin{gathered} \widehat{\delta\mathbf{x}}_{t,j} =\mathbf{K}_{t,j}\Bigl[\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0})\Bigr] -\left(\mathbf{I}-\mathbf{K}_{t,j}\mathbf{H}_{t,j}\right) (\mathbf{J}^{\mathrm{r}}_{t,j})^{-1} \left(\hat{\mathbf{x}}_{t,j}\boxminus\hat{\mathbf{x}}_t\right),\qquad \hat{\mathbf{x}}_{t,j+1}=\hat{\mathbf{x}}_{t,j}\boxplus\widehat{\delta\mathbf{x}}_{t,j} \end{gathered}$$
+]
+
+- $\|\widehat{\delta\mathbf{x}}_{t,n}\|<\epsilon$이면 종료. 최종 nominal state는 $\hat{\mathbf{x}}_{t|t}=\hat{\mathbf{x}}_{t,n+1}$
+- 마지막 error covariance를 구한 뒤, 최종 nominal state의 error 좌표로 reset
+
+.f-85[
+$$\boldsymbol{\Sigma}_{t|t} =\mathbf{G}_{t,n}\Bigl[ (\mathbf{I}-\mathbf{K}_{t,n}\mathbf{H}_{t,n})\boldsymbol{\Sigma}_{t|t-1,n} \Bigr]\mathbf{G}_{t,n}^{\top},\qquad \widehat{\delta\mathbf{x}}_{t}^{\mathrm{new}}=\mathbf{0}$$
+
+$$\mathbf{G}_{t,n} =\left.\frac{\partial\left[ (\hat{\mathbf{x}}_{t,n}\boxplus\delta\mathbf{x}_{t,n})\boxminus\hat{\mathbf{x}}_{t,n+1} \right]}{\partial\delta\mathbf{x}_{t,n}} \right|_{\delta\mathbf{x}_{t,n}=\widehat{\delta\mathbf{x}}_{t,n}}$$
+]
+
+- $\mathbf{G}_{t,n}$는 reset Jacobian. 단순 덧셈에서는 $\mathbf{I}$이므로 앞의 식으로 돌아옴
+
+.f-80[
+좌표변환·reset 참고: [Kalman Filters on Differentiable Manifolds, §V-D](https://arxiv.org/html/2102.03804v3#S5.SS4)
+]

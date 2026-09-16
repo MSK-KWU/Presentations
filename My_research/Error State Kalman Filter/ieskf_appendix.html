@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="" xml:lang="">
+  <head>
+    <title>IESKF: 상세 유도 부록</title>
+    <meta charset="utf-8" />
+    <script src="libs/header-attrs-2.30/header-attrs.js"></script>
+    <link href="libs/remark-css-0.0.1/default.css" rel="stylesheet" />
+    <link href="libs/remark-css-0.0.1/default-fonts.css" rel="stylesheet" />
+    <link rel="stylesheet" href="swan/swan.css" type="text/css" />
+    <link rel="stylesheet" href="swan/tachyons_ext.css" type="text/css" />
+    <link rel="stylesheet" href="logo-bottom-right.css" type="text/css" />
+  </head>
+  <body>
+    <textarea id="source">
+class: center, middle, inverse, title-slide
+
+.title[
+# IESKF: 상세 유도 부록
+]
+.author[
+### <p>Minsu Kim</p>
+]
+.date[
+### 2026.08.20
+]
+
+---
+
+
+&lt;!-- 2026-09-17: eskf.Rmd의 IESKF 본문에서 옮긴 상세 유도. 수식 내용은 보존하고 수식 줄바꿈만 정리. --&gt;
+
+# IESKF: MAP으로 써보면
+
+- Posterior를 크게 하는 error를 찾는 것은, 아래 두 항의 합을 작게 하는 것
+  - Measurement: 측정값과 선형화한 예상 측정값의 차이
+  - Prior: 보정한 상태와 처음 prediction한 상태의 차이
+
+.f-90[
+`$$\begin{gathered} \widehat{\delta\mathbf{x}}_{t,j} =\underset{\delta\mathbf{x}_{t,j}}{\operatorname{arg\,min}}\;\Bigl[ \left\|\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0}) -\mathbf{H}_{t,j}\delta\mathbf{x}_{t,j}\right\|^2_{ \mathbf{Q}_t^{-1}} +\left\|\hat{\mathbf{x}}_{t,j}-\hat{\mathbf{x}}_t+\delta\mathbf{x}_{t,j}\right\|^2_{ \boldsymbol{\Sigma}_{t|t-1}^{-1}}\Bigr] \end{gathered}$$`
+
+`$$\|\mathbf{a}\|^2_{\mathbf{W}}=\mathbf{a}^{\top}\mathbf{W}\mathbf{a}$$`
+]
+
+- 각 항은 covariance의 역행렬로 가중. 불확실성이 작을수록 더 강하게 반영
+- 매 반복에서 같은 측정과 같은 prior를 사용하며, 선형화점만 갱신
+
+
+---
+
+# IESKF: 미분해서 정리해 봅시다
+
+- 앞 목적함수를 `\(\delta\mathbf{x}_{t,j}\)`로 미분하고 0으로 두면
+
+.f-85[
+`$$\begin{gathered} \mathbf{0}=-\mathbf{H}_{t,j}^{\top} \mathbf{Q}_t^{-1} \Bigl[\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0}) -\mathbf{H}_{t,j}\widehat{\delta\mathbf{x}}_{t,j}\Bigr] +\boldsymbol{\Sigma}_{t|t-1}^{-1} \Bigl[\hat{\mathbf{x}}_{t,j}-\hat{\mathbf{x}}_t+\widehat{\delta\mathbf{x}}_{t,j}\Bigr] \end{gathered}$$`
+]
+
+- `\(\widehat{\delta\mathbf{x}}_{t,j}\)`가 있는 항을 왼쪽으로 모으면
+
+.f-85[
+`$$\begin{gathered} \Bigl[\boldsymbol{\Sigma}_{t|t-1}^{-1} +\mathbf{H}_{t,j}^{\top}\mathbf{Q}_t^{-1} \mathbf{H}_{t,j}\Bigr]\widehat{\delta\mathbf{x}}_{t,j}\\ =\mathbf{H}_{t,j}^{\top}\mathbf{Q}_t^{-1} \Bigl[\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0})\Bigr] -\boldsymbol{\Sigma}_{t|t-1}^{-1}\left(\hat{\mathbf{x}}_{t,j}-\hat{\mathbf{x}}_t\right) \end{gathered}$$`
+]
+
+- 이번 반복 안에서는 Jacobian을 고정. 마지막 항은 **이동한 prior mean** 때문에 남음
+
+
+---
+
+# IESKF: Kalman Gain · Update
+
+- 역행렬 보조정리로 정리하면, 앞에서 구한 Kalman gain과 같은 구조
+
+.f-85[
+`$$\begin{gathered} \mathbf{K}_{t,j} =\Bigl[\boldsymbol{\Sigma}_{t|t-1}^{-1} +\mathbf{H}_{t,j}^{\top}\mathbf{Q}_t^{-1}\mathbf{H}_{t,j}\Bigr]^{-1} \mathbf{H}_{t,j}^{\top}\mathbf{Q}_t^{-1}\\ =\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_{t,j}^{\top} \Bigl(\mathbf{H}_{t,j}\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_{t,j}^{\top} +\mathbf{Q}_t\Bigr)^{-1} \end{gathered}$$`
+
+`$$\begin{gathered} \widehat{\delta\mathbf{x}}_{t,j} =\mathbf{K}_{t,j}\Bigl[\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0})\Bigr] -\left(\mathbf{I}-\mathbf{K}_{t,j}\mathbf{H}_{t,j}\right) \left(\hat{\mathbf{x}}_{t,j}-\hat{\mathbf{x}}_t\right) \end{gathered}$$`
+]
+
+`$$\hat{\mathbf{x}}_{t,j+1}=\hat{\mathbf{x}}_{t,j}+\widehat{\delta\mathbf{x}}_{t,j}$$`
+
+- 측정 차이의 보정 + 처음 prediction한 상태와의 차이 보정
+- Additive measurement noise의 covariance는 `\(\mathbf{Q}_t\)`
+
+
+---
+
+# IESKF: 앞의 IEKF와 연결하면
+
+- Error의 보정량을 nominal state에 더하고, 항을 정리하면
+
+.f-90[
+`$$\begin{gathered} \hat{\mathbf{x}}_{t,j+1} =\hat{\mathbf{x}}_{t,j} +\mathbf{K}_{t,j}\Bigl[\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0})\Bigr] -\left(\mathbf{I}-\mathbf{K}_{t,j}\mathbf{H}_{t,j}\right) \left(\hat{\mathbf{x}}_{t,j}-\hat{\mathbf{x}}_t\right)\\ =\hat{\mathbf{x}}_t+\mathbf{K}_{t,j}\Bigl[ \mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0}) -\mathbf{H}_{t,j}\left(\hat{\mathbf{x}}_t-\hat{\mathbf{x}}_{t,j}\right)\Bigr] \end{gathered}$$`
+]
+
+- `\(\hat{\mathbf{x}}_t\leftrightarrow\bar{\boldsymbol{\mu}}_t\)`, `\(\hat{\mathbf{x}}_{t,j}\leftrightarrow\boldsymbol{\mu}_{t,j}\)`로 보면 IEKF와 같은 형태
+- 같은 벡터 좌표·모델·prior를 사용하면 결과도 동일. IESKF는 이를 **현재 nominal state에 더할 error**로 풀어 쓴 것
+- 회전처럼 state와 error의 표현이 다르면, 다음의 좌표변환이 필요
+
+
+---
+
+# IESKF: 회전 상태에서는?
+
+- `\(\boxplus\)`: error를 state에 반영, `\(\boxminus\)`: 두 state의 차이를 error 좌표로 표현
+
+`$$\mathbf{x}_t =\hat{\mathbf{x}}_{t,j}\boxplus\delta\mathbf{x}_{t,j}$$`
+
+- 현재 error를 처음 prediction한 상태의 error 좌표로 옮기면
+
+`$$\begin{gathered} \delta\mathbf{x}_t =\left(\hat{\mathbf{x}}_{t,j}\boxplus\delta\mathbf{x}_{t,j}\right)\boxminus\hat{\mathbf{x}}_t\\ \simeq\left(\hat{\mathbf{x}}_{t,j}\boxminus\hat{\mathbf{x}}_t\right) +\mathbf{J}^{\mathrm{r}}_{t,j}\delta\mathbf{x}_{t,j} \end{gathered}$$`
+
+`$$\mathbf{J}^{\mathrm{r}}_{t,j} =\left.\frac{\partial\left[ (\hat{\mathbf{x}}_{t,j}\boxplus\delta\mathbf{x}_{t,j})\boxminus\hat{\mathbf{x}}_t \right]}{\partial\delta\mathbf{x}_{t,j}}\right|_{\delta\mathbf{x}_{t,j}=\mathbf{0}}$$`
+
+- 논문의 `\(\mathbf{J}_{t,j}\)`를 여기서는 `\(\mathbf{J}^{\mathrm{r}}_{t,j}\)`로 표기: **motion Jacobian `\(\mathbf{J}_t\)`와 다른 행렬**
+- 앞의 단순 덧셈 좌표에서는 `\(\boxplus=+\)`, `\(\boxminus=-\)`, `\(\mathbf{J}^{\mathrm{r}}_{t,j}=\mathbf{I}\)`
+
+
+---
+
+# IESKF: 현재 좌표의 Prior · Gain
+
+- 처음 얻은 prior를 현재 error 좌표로 변환. 새로운 measurement update는 아님
+
+.f-90[
+`$$\begin{gathered} \delta\mathbf{x}_{t,j}\sim\mathcal{N}\Bigl( -(\mathbf{J}^{\mathrm{r}}_{t,j})^{-1} (\hat{\mathbf{x}}_{t,j}\boxminus\hat{\mathbf{x}}_t),\; \boldsymbol{\Sigma}_{t|t-1,j}\Bigr),\\ \boldsymbol{\Sigma}_{t|t-1,j} =(\mathbf{J}^{\mathrm{r}}_{t,j})^{-1}\boldsymbol{\Sigma}_{t|t-1} (\mathbf{J}^{\mathrm{r}}_{t,j})^{-\top} \end{gathered}$$`
+]
+
+- 끝의 `\(j\)`는 **같은 prior covariance를 표현하는 좌표**를 구분
+
+.f-90[
+`$$\begin{gathered} \mathbf{K}_{t,j}=\boldsymbol{\Sigma}_{t|t-1,j}\mathbf{H}_{t,j}^{\top}\cdot\Bigl(\mathbf{H}_{t,j}\boldsymbol{\Sigma}_{t|t-1,j}\mathbf{H}_{t,j}^{\top} +\mathbf{Q}_t\Bigr)^{-1} \end{gathered}$$`
+]
+
+- `\(\mathbf{H}_{t,j}\)`는 현재 error 좌표에서의 미분. `\(\mathbf{J}^{\mathrm{r}}_{t,j}\)`는 현재 좌표와 prior 좌표 사이의 미분
+
+
+---
+
+# IESKF: 일반형 Update · Reset
+
+.f-85[
+`$$\begin{gathered} \widehat{\delta\mathbf{x}}_{t,j} =\mathbf{K}_{t,j}\Bigl[\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0})\Bigr] -\left(\mathbf{I}-\mathbf{K}_{t,j}\mathbf{H}_{t,j}\right) (\mathbf{J}^{\mathrm{r}}_{t,j})^{-1} \left(\hat{\mathbf{x}}_{t,j}\boxminus\hat{\mathbf{x}}_t\right),\qquad \hat{\mathbf{x}}_{t,j+1}=\hat{\mathbf{x}}_{t,j}\boxplus\widehat{\delta\mathbf{x}}_{t,j} \end{gathered}$$`
+]
+
+- `\(\|\widehat{\delta\mathbf{x}}_{t,n}\|&lt;\epsilon\)`이면 종료. 최종 nominal state는 `\(\hat{\mathbf{x}}_{t|t}=\hat{\mathbf{x}}_{t,n+1}\)`
+- 마지막 error covariance를 구한 뒤, 최종 nominal state의 error 좌표로 reset
+
+.f-85[
+`$$\boldsymbol{\Sigma}_{t|t} =\mathbf{G}_{t,n}\Bigl[ (\mathbf{I}-\mathbf{K}_{t,n}\mathbf{H}_{t,n})\boldsymbol{\Sigma}_{t|t-1,n} \Bigr]\mathbf{G}_{t,n}^{\top},\qquad \widehat{\delta\mathbf{x}}_{t}^{\mathrm{new}}=\mathbf{0}$$`
+
+`$$\mathbf{G}_{t,n} =\left.\frac{\partial\left[ (\hat{\mathbf{x}}_{t,n}\boxplus\delta\mathbf{x}_{t,n})\boxminus\hat{\mathbf{x}}_{t,n+1} \right]}{\partial\delta\mathbf{x}_{t,n}} \right|_{\delta\mathbf{x}_{t,n}=\widehat{\delta\mathbf{x}}_{t,n}}$$`
+]
+
+- `\(\mathbf{G}_{t,n}\)`는 reset Jacobian. 단순 덧셈에서는 `\(\mathbf{I}\)`이므로 앞의 식으로 돌아옴
+
+.f-80[
+좌표변환·reset 참고: [Kalman Filters on Differentiable Manifolds, §V-D](https://arxiv.org/html/2102.03804v3#S5.SS4)
+]
+    </textarea>
+<style data-target="print-only">@media screen {.remark-slide-container{display:block;}.remark-slide-scaler{box-shadow:none;}}</style>
+<script src="https://remarkjs.com/downloads/remark-latest.min.js"></script>
+<script>var slideshow = remark.create({
+  "highlightStyle": "github",
+  "highlightLines": true,
+  "countIncrementalSlides": false,
+  "ratio": "16:9"
+});
+if (window.HTMLWidgets) slideshow.on('afterShowSlide', function (slide) {
+  window.dispatchEvent(new Event('resize'));
+});
+(function(d) {
+  var s = d.createElement("style"), r = d.querySelector(".remark-slide-scaler");
+  if (!r) return;
+  s.type = "text/css"; s.innerHTML = "@page {size: " + r.style.width + " " + r.style.height +"; }";
+  d.head.appendChild(s);
+})(document);
+
+(function(d) {
+  var el = d.getElementsByClassName("remark-slides-area");
+  if (!el) return;
+  var slide, slides = slideshow.getSlides(), els = el[0].children;
+  for (var i = 1; i < slides.length; i++) {
+    slide = slides[i];
+    if (slide.properties.continued === "true" || slide.properties.count === "false") {
+      els[i - 1].className += ' has-continuation';
+    }
+  }
+  var s = d.createElement("style");
+  s.type = "text/css"; s.innerHTML = "@media print { .has-continuation { display: none; } }";
+  d.head.appendChild(s);
+})(document);
+// delete the temporary CSS (for displaying all slides initially) when the user
+// starts to view slides
+(function() {
+  var deleted = false;
+  slideshow.on('beforeShowSlide', function(slide) {
+    if (deleted) return;
+    var sheets = document.styleSheets, node;
+    for (var i = 0; i < sheets.length; i++) {
+      node = sheets[i].ownerNode;
+      if (node.dataset["target"] !== "print-only") continue;
+      node.parentNode.removeChild(node);
+    }
+    deleted = true;
+  });
+})();
+// add `data-at-shortcutkeys` attribute to <body> to resolve conflicts with JAWS
+// screen reader (see PR #262)
+(function(d) {
+  let res = {};
+  d.querySelectorAll('.remark-help-content table tr').forEach(tr => {
+    const t = tr.querySelector('td:nth-child(2)').innerText;
+    tr.querySelectorAll('td:first-child .key').forEach(key => {
+      const k = key.innerText;
+      if (/^[a-z]$/.test(k)) res[k] = t;  // must be a single letter (key)
+    });
+  });
+  d.body.setAttribute('data-at-shortcutkeys', JSON.stringify(res));
+})(document);
+(function() {
+  "use strict"
+  // Replace <script> tags in slides area to make them executable
+  var scripts = document.querySelectorAll(
+    '.remark-slides-area .remark-slide-container script'
+  );
+  if (!scripts.length) return;
+  for (var i = 0; i < scripts.length; i++) {
+    var s = document.createElement('script');
+    var code = document.createTextNode(scripts[i].textContent);
+    s.appendChild(code);
+    var scriptAttrs = scripts[i].attributes;
+    for (var j = 0; j < scriptAttrs.length; j++) {
+      s.setAttribute(scriptAttrs[j].name, scriptAttrs[j].value);
+    }
+    scripts[i].parentElement.replaceChild(s, scripts[i]);
+  }
+})();
+(function() {
+  var links = document.getElementsByTagName('a');
+  for (var i = 0; i < links.length; i++) {
+    if (/^(https?:)?\/\//.test(links[i].getAttribute('href'))) {
+      links[i].target = '_blank';
+    }
+  }
+})();
+// adds .remark-code-has-line-highlighted class to <pre> parent elements
+// of code chunks containing highlighted lines with class .remark-code-line-highlighted
+(function(d) {
+  const hlines = d.querySelectorAll('.remark-code-line-highlighted');
+  const preParents = [];
+  const findPreParent = function(line, p = 0) {
+    if (p > 1) return null; // traverse up no further than grandparent
+    const el = line.parentElement;
+    return el.tagName === "PRE" ? el : findPreParent(el, ++p);
+  };
+
+  for (let line of hlines) {
+    let pre = findPreParent(line);
+    if (pre && !preParents.includes(pre)) preParents.push(pre);
+  }
+  preParents.forEach(p => p.classList.add("remark-code-has-line-highlighted"));
+})(document);</script>
+<script>
+(function () {
+  function appendBottomLogoText() {
+    document
+      .querySelectorAll(
+        '.remark-slide-content:not(.title-slide):not(.inverse):not(.hide-logo)'
+      )
+      .forEach(function (el) {
+        if (el.querySelector('.logo')) {
+          return;
+        }
+
+        el.insertAdjacentHTML(
+          'beforeend',
+          '<div class="logo"> </div>'
+        );
+      });
+  }
+
+  document.addEventListener('DOMContentLoaded', appendBottomLogoText);
+  window.addEventListener('load', appendBottomLogoText);
+  setTimeout(appendBottomLogoText, 300);
+})();
+</script>
+
+<script>
+slideshow._releaseMath = function(el) {
+  var i, text, code, codes = el.getElementsByTagName('code');
+  for (i = 0; i < codes.length;) {
+    code = codes[i];
+    if (code.parentNode.tagName !== 'PRE' && code.childElementCount === 0) {
+      text = code.textContent;
+      if (/^\\\((.|\s)+\\\)$/.test(text) || /^\\\[(.|\s)+\\\]$/.test(text) ||
+          /^\$\$(.|\s)+\$\$$/.test(text) ||
+          /^\\begin\{([^}]+)\}(.|\s)+\\end\{[^}]+\}$/.test(text)) {
+        code.outerHTML = code.innerHTML;  // remove <code></code>
+        continue;
+      }
+    }
+    i++;
+  }
+};
+slideshow._releaseMath(document);
+</script>
+<!-- dynamically load mathjax for compatibility with self-contained -->
+<script>
+(function () {
+  var script = document.createElement('script');
+  script.type = 'text/javascript';
+  script.src  = 'https://mathjax.rstudio.com/latest/MathJax.js?config=TeX-MML-AM_CHTML';
+  if (location.protocol !== 'file:' && /^https?:/.test(script.src))
+    script.src  = script.src.replace(/^https?:/, '');
+  document.getElementsByTagName('head')[0].appendChild(script);
+})();
+</script>
+  </body>
+</html>

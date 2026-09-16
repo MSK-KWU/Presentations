@@ -39,17 +39,14 @@ class: title-slide
 count: false
 
 
-
 # Contents
 .f-130[
 - Review
   - Kalman Filter
   - Extended Kalman Filter
-
-- Error State Kalman Filter
-  - State Shift
-  - ESKF
-  - IESKF
+- Iterated Extended Kalman Filter  
+- ESKF(Error-State Kalman Filter)
+- IESKF(Iterated Error-State Kalman Filter)
 ]
     
 
@@ -70,22 +67,26 @@ count: false
 <img src="fig/KF_state_update.png" width="72%">
 ]
 
-.pull-right[
-- Linear motion and measurement model
+.pull-right.nt-07[
+- Linear system
 
 $$\mathbf{x}_t = \mathbf{A}_t\mathbf{x}_{t-1} + \mathbf{B}_t\mathbf{u}_t + \mathbf{w}_t \text{,}
 \qquad \mathbf{w}_t \sim \mathcal{N}(\mathbf{0},\mathbf{R}_t) \text{,}\\
 \mathbf{z}_t = \mathbf{C}_t\mathbf{x}_t + \mathbf{v}_t\text{,}
 \qquad \mathbf{v}_t \sim \mathcal{N}(\mathbf{0},\mathbf{Q}_t)$$
 
-- Prediction model
+- Prediction step
 
 $$\bar{\boldsymbol{\mu}}_t = \mathbf{A}_t \boldsymbol{\mu}_{t-1} + \mathbf{B}_t\mathbf{u}_t \text{,} \\
 \bar{\boldsymbol{\Sigma}}_t = \mathbf{A}_t\boldsymbol{\Sigma}_{t-1}\mathbf{A}_t^{\top}  + \mathbf{R}_t$$
 
-$$\boxed{
-\begin{gathered}
-\mathbf{K}_t
+- Correction step: 
+
+$$\widehat{\mathbf{z}}_t=\mathbf{C}_t\bar{\boldsymbol{\mu}}_t,\qquad
+\mathbf{z}_t-\widehat{\mathbf{z}}_t
+=\mathbf{z}_t-\mathbf{C}_t\bar{\boldsymbol{\mu}}_t$$
+
+$$\mathbf{K}_t
 = \bar{\boldsymbol{\Sigma}}_t\mathbf{C}_t^\top
 \left(\mathbf{C}_t\bar{\boldsymbol{\Sigma}}_t\mathbf{C}_t^\top
 +\mathbf{Q}_t\right)^{-1},\\
@@ -94,39 +95,9 @@ $$\boxed{
 +\mathbf{K}_t\left(\mathbf{z}_t-\mathbf{C}_t\bar{\boldsymbol{\mu}}_t\right),\\
 \boldsymbol{\Sigma}_t
 = \left(\mathbf{I}-\mathbf{K}_t\mathbf{C}_t\right)
-\bar{\boldsymbol{\Sigma}}_t.
-\end{gathered}}$$
+\bar{\boldsymbol{\Sigma}}_t$$
 ]
 
----
-# Review: Extended Kalman Filter
-
-.pull-left[
-<img src="fig/taylor_1st_order.png" width="100%">
-]
-
-.pull-right[
-- Motion and measurement model in nonlinear case
-
-$$\begin{gathered}
-\mathbf{x}_t = f(\mathbf{x}_{t-1},\mathbf{u}_t)+\mathbf{w}_t,\\
-\mathbf{z}_t = h(\mathbf{x}_t)+\mathbf{v}_t.
-\end{gathered}$$
-
--First-order Taylor approximation
-
-$$\boxed{
-f(\mathbf{x}) \approx
-f(\mathbf{a})
-+\mathbf{J}_f(\mathbf{a})(\mathbf{x}-\mathbf{a})}$$
-
-$$\mathbf{F}_t
-=\left.\frac{\partial f}{\partial\mathbf{x}}\right|_{\boldsymbol{\mu}_{t-1}},
-\qquad
-\mathbf{H}_t
-=\left.\frac{\partial h}{\partial\mathbf{x}}\right|_{\bar{\boldsymbol{\mu}}_t}$$
-
-]
 
 ---
 # Review: Extended Kalman Filter
@@ -135,18 +106,29 @@ $$\mathbf{F}_t
 <img src="fig/1st_order_ekf.png" width="100%">
 ]
 
-.pull-right[
-Prediction
+.pull-right.nt-08[
+- Motion and measurement model in nonlinear case
+
+$$\begin{gathered}
+\mathbf{x}_t = f(\mathbf{x}_{t-1},\mathbf{u}_t)+\mathbf{w}_t,\\
+\mathbf{z}_t = h(\mathbf{x}_t)+\mathbf{v}_t.
+\end{gathered}$$
+
+- Prediction step 
 
 $$\begin{gathered}
 \bar{\boldsymbol{\mu}}_t
 = f(\boldsymbol{\mu}_{t-1},\mathbf{u}_t),\\
 \bar{\boldsymbol{\Sigma}}_t
-= \mathbf{F}_t\boldsymbol{\Sigma}_{t-1}\mathbf{F}_t^\top
+= \mathbf{J}_t\boldsymbol{\Sigma}_{t-1}\mathbf{J}_t^\top
 +\mathbf{R}_t.
 \end{gathered}$$
 
-Correction
+- Correction step
+
+$$\widehat{\mathbf{z}}_t=h(\bar{\boldsymbol{\mu}}_t),\qquad
+\mathbf{z}_t-\widehat{\mathbf{z}}_t
+=\mathbf{z}_t-h(\bar{\boldsymbol{\mu}}_t)$$
 
 $$\begin{gathered}
 \mathbf{K}_t
@@ -163,1030 +145,606 @@ $$\begin{gathered}
 
 ]
 
----
-
-
-  
-    
-class: center, middle
-
-# Error-State Kalman Filter
-
-### Nonlinear nominal state, locally linear error state
-
-$$\mathbf{x}_t^{\mathrm{true}}
-=\boldsymbol{\mu}_t\oplus\delta\mathbf{x}_t,
-\qquad
-\delta\mathbf{x}_t\sim
-\mathcal{N}(\mathbf{0},\boldsymbol{\Sigma}_t)$$
 
 ---
-# ESKF - Notation
-
-- $\mathcal{M}$: state manifold
-- $\boldsymbol{\mu}\in\mathcal{M}$: nominal state
-- $\delta\mathbf{x}\in\mathbb{R}^{n}$: local error state
-
-$$\begin{gathered}
-\oplus:\mathcal{M}\times\mathbb{R}^{n}\rightarrow\mathcal{M},\\
-\ominus:\mathcal{M}\times\mathcal{M}\rightarrow\mathbb{R}^{n},\\
-\mathbf{x}^{\mathrm{true}}
-=\boldsymbol{\mu}\oplus\delta\mathbf{x},\\
-\delta\mathbf{x}
-=\mathbf{x}^{\mathrm{true}}\ominus\boldsymbol{\mu}.
-\end{gathered}$$
-
-The operators satisfy the local identities
-
-$$\boldsymbol{\mu}\oplus\mathbf{0}=\boldsymbol{\mu},
-\qquad
-(\boldsymbol{\mu}\oplus\delta\mathbf{x})\ominus\boldsymbol{\mu}
-\simeq\delta\mathbf{x}$$
-
----
-# ESKF - Why Error State?
-
-The full state is generally not a vector.
-
-$$\mathbf{R}+\delta\boldsymbol{\theta}
-\notin\mathrm{SO}(3)$$
-
-The error state remains small and lives in a local vector space.
-
-$$\mathbf{R}^{\mathrm{true}}
-=\bar{\mathbf{R}}\operatorname{Exp}
-\left([\delta\boldsymbol{\theta}]_{\times}\right)$$
-
-- Propagate the nonlinear nominal state without forcing it into a Gaussian vector.
-- Propagate only the small error by a first-order linear model.
-- Correct the nominal state by injecting the estimated error.
-
----
-# ESKF - State on Manifold
-
+# Iterative Extended Kalman Filter (IEKF)
 .pull-left[
-<img src="fig/so3_on_manifold.png" width="100%">
+  <img src="fig/taylor_2nd_order.png" width="100%">
 ]
 
 .pull-right[
-The covariance describes uncertainty in the tangent space, not directly on the manifold.
-
-$$\delta\mathbf{x}
-\sim\mathcal{N}(\mathbf{0},\boldsymbol{\Sigma})$$
-
-$$\mathbf{x}^{\mathrm{true}}
-=\boldsymbol{\mu}\oplus\delta\mathbf{x}$$
-
-For rotation with a right perturbation,
-
-$$\mathbf{R}^{\mathrm{true}}
-=\boldsymbol{\mu}_{\mathbf{R}}
-\operatorname{Exp}
-\left([\delta\boldsymbol{\theta}]_{\times}\right)$$
-
-The nominal state may move far globally while the local error remains small.
+- 다음은 EKF를 반복적으로 수행하는 IEKF(Iterative Extended Kalman Filter)
+- EKF의 선형화는, 근사치를 구한 것이라 언급했었음
+- IEKF는 이 때 발생하는 근사치의 오차를 줄이기 위해 반복적으로 수행
+  - 단, 뒤에서 다룰 ESKF에서 추정하는 error state는 아님
 ]
 
 ---
-# ESKF - IMU State Example
+# IEKF: Commonality
+- Prediction step은 동일
 
-Nominal state
-
-$$\boldsymbol{\mu}
-=\left(
-\mathbf{p},\mathbf{v},\mathbf{R},
-\mathbf{b}_{a},\mathbf{b}_{g},\mathbf{g}
-\right)$$
-
-Error state
-
-$$\delta\mathbf{x}
-=\left(
-\delta\mathbf{p}^{\top},
-\delta\mathbf{v}^{\top},
-\delta\boldsymbol{\theta}^{\top},
-\delta\mathbf{b}_{a}^{\top},
-\delta\mathbf{b}_{g}^{\top},
-\delta\mathbf{g}^{\top}
-\right)^{\top}$$
-
-Injection rule
+.pull-left.f-90[
+#### EKF
 
 $$\begin{gathered}
-\mathbf{p}^{+}=\mathbf{p}+\delta\mathbf{p},
-\qquad
-\mathbf{v}^{+}=\mathbf{v}+\delta\mathbf{v},\\
-\mathbf{R}^{+}
-=\mathbf{R}\operatorname{Exp}
-\left([\delta\boldsymbol{\theta}]_{\times}\right),\\
-\mathbf{b}_{a}^{+}=\mathbf{b}_{a}+\delta\mathbf{b}_{a},
-\qquad
-\mathbf{b}_{g}^{+}=\mathbf{b}_{g}+\delta\mathbf{b}_{g},
-\qquad
-\mathbf{g}^{+}=\mathbf{g}+\delta\mathbf{g}.
+\mathbf{x}_t
+=f(\mathbf{x}_{t-1},\mathbf{u}_t)+\mathbf{w}_t,\\
+\mathbf{z}_t
+=h(\mathbf{x}_t)+\mathbf{v}_t
 \end{gathered}$$
 
----
-# ESKF - Overall Process
-
-At time $t-1$,
-
-$$\mathbf{x}_{t-1}^{\mathrm{true}}
-=\boldsymbol{\mu}_{t-1}\oplus\delta\mathbf{x}_{t-1}$$
-
-One ESKF step consists of
-
-$$\boxed{
-\text{Prediction}
-\ \longrightarrow\
-\text{Error correction}
-\ \longrightarrow\
-\text{Injection}
-\ \longrightarrow\
-\text{Reset}}$$
-
 $$\begin{gathered}
-(\boldsymbol{\mu}_{t-1},\boldsymbol{\Sigma}_{t-1})
-\longrightarrow
-(\bar{\boldsymbol{\mu}}_{t},\bar{\boldsymbol{\Sigma}}_{t}),\\
-(\bar{\boldsymbol{\mu}}_{t},\bar{\boldsymbol{\Sigma}}_{t})
-\longrightarrow
-(\widehat{\delta\mathbf{x}}_{t},\boldsymbol{\Sigma}_{t}^{\mathrm{corr}}),\\
-\boldsymbol{\mu}_{t}
-=\bar{\boldsymbol{\mu}}_{t}\oplus\widehat{\delta\mathbf{x}}_{t},
-\qquad
-\delta\mathbf{x}_{t}\leftarrow\mathbf{0}.
+\mathbf{w}_t\sim\mathcal{N}(\mathbf{0},\mathbf{R}_t),\\
+\mathbf{v}_t\sim\mathcal{N}(\mathbf{0},\mathbf{Q}_t)
 \end{gathered}$$
 
----
-# ESKF - Prediction Model
+#### Prediction
 
-Nonlinear process model
-
-$$\mathbf{x}_{t}^{\mathrm{true}}
-=f\left(
-\mathbf{x}_{t-1}^{\mathrm{true}},
-\mathbf{u}_{t},\mathbf{w}_{t}
-\right),
-\qquad
-\mathbf{w}_{t}\sim\mathcal{N}(\mathbf{0},\mathbf{R}_{t})$$
-
-Nominal propagation
-
-$$\bar{\boldsymbol{\mu}}_{t}
-=f\left(
-\boldsymbol{\mu}_{t-1},\mathbf{u}_{t},\mathbf{0}
-\right)$$
-
-Local Jacobians
+$$\bar{\boldsymbol{\mu}}_t
+=f(\boldsymbol{\mu}_{t-1},\mathbf{u}_t)$$
 
 $$\begin{gathered}
-\mathbf{F}_{t}
+\bar{\boldsymbol{\Sigma}}_t
+=\mathbf{J}_t\boldsymbol{\Sigma}_{t-1}\mathbf{J}_t^\top
++\mathbf{R}_t
+\end{gathered}$$
+]
+
+.pull-right.f-90[
+#### IEKF
+
+$$\begin{gathered}
+\mathbf{x}_t
+=f(\mathbf{x}_{t-1},\mathbf{u}_t)+\mathbf{w}_t,\\
+\mathbf{z}_t
+=h(\mathbf{x}_t)+\mathbf{v}_t
+\end{gathered}$$
+
+$$\begin{gathered}
+\mathbf{w}_t\sim\mathcal{N}(\mathbf{0},\mathbf{R}_t),\\
+\mathbf{v}_t\sim\mathcal{N}(\mathbf{0},\mathbf{Q}_t)
+\end{gathered}$$
+
+#### Prediction
+
+$$\bar{\boldsymbol{\mu}}_t
+=f(\boldsymbol{\mu}_{t-1},\mathbf{u}_t)$$
+
+$$\begin{gathered}
+\bar{\boldsymbol{\Sigma}}_t
+=\mathbf{J}_t\boldsymbol{\Sigma}_{t-1}\mathbf{J}_t^\top
++\mathbf{R}_t
+\end{gathered}$$
+]
+
+---
+# IEKF: Difference
+- **실제 측정값 − 예상 측정값**으로 정리하고, IEKF는 선형화점 차이까지 보정
+
+.pull-left.f-90[
+#### EKF
+
+$$\mathbf{H}_t
 =\left.
-\frac{\partial
-\left[
-f(\boldsymbol{\mu}_{t-1}\oplus\delta\mathbf{x},
-\mathbf{u}_{t},\mathbf{0})
-\ominus\bar{\boldsymbol{\mu}}_{t}
-\right]}
-{\partial\delta\mathbf{x}}
-\right|_{\delta\mathbf{x}=\mathbf{0}},\\
-\mathbf{L}_{t}
-=\left.
-\frac{\partial
-\left[
-f(\boldsymbol{\mu}_{t-1},\mathbf{u}_{t},\mathbf{w})
-\ominus\bar{\boldsymbol{\mu}}_{t}
-\right]}
-{\partial\mathbf{w}}
-\right|_{\mathbf{w}=\mathbf{0}}.
-\end{gathered}$$
-
----
-# ESKF - Error Dynamics Derivation
-
-Substitute the true state into the process model.
-
-$$\delta\mathbf{x}_{t}
-=f\left(
-\boldsymbol{\mu}_{t-1}\oplus\delta\mathbf{x}_{t-1},
-\mathbf{u}_{t},\mathbf{w}_{t}
-\right)
-\ominus
-f\left(
-\boldsymbol{\mu}_{t-1},\mathbf{u}_{t},\mathbf{0}
-\right)$$
-
-First-order expansion around
-$\delta\mathbf{x}_{t-1}=\mathbf{0}$ and $\mathbf{w}_{t}=\mathbf{0}$ gives
-
-$$\boxed{
-\delta\mathbf{x}_{t}
-\simeq
-\mathbf{F}_{t}\delta\mathbf{x}_{t-1}
-+\mathbf{L}_{t}\mathbf{w}_{t}}$$
-
-Therefore,
-
-$$\mathbb{E}[\delta\mathbf{x}_{t}]=\mathbf{0}$$
-
-when the previous error and process noise are zero mean.
-
----
-# ESKF - Prediction Mean
-
-The nominal state is propagated through the original nonlinear dynamics.
-
-$$\bar{\boldsymbol{\mu}}_{t}
-=f\left(
-\boldsymbol{\mu}_{t-1},\mathbf{u}_{t},\mathbf{0}
-\right)$$
-
-For an IMU with sampling time $\Delta t$,
+\frac{\partial h}{\partial\mathbf{x}}
+\right|_{\mathbf{x}=\bar{\boldsymbol{\mu}}_t}$$
 
 $$\begin{gathered}
-\bar{\mathbf{p}}_{t}
-=\mathbf{p}_{t-1}
-+\mathbf{v}_{t-1}\Delta t
-+\frac{1}{2}
-\left[
-\mathbf{R}_{t-1}(\mathbf{a}_{m}-\mathbf{b}_{a})
-+\mathbf{g}_{t-1}
-\right]\Delta t^{2},\\
-\bar{\mathbf{v}}_{t}
-=\mathbf{v}_{t-1}
-+\left[
-\mathbf{R}_{t-1}(\mathbf{a}_{m}-\mathbf{b}_{a})
-+\mathbf{g}_{t-1}
-\right]\Delta t,\\
-\bar{\mathbf{R}}_{t}
-=\mathbf{R}_{t-1}
-\operatorname{Exp}
-\left(
-[\boldsymbol{\omega}_{m}-\mathbf{b}_{g}]_{\times}\Delta t
-\right),\\
-\bar{\mathbf{b}}_{a,t}=\mathbf{b}_{a,t-1},
-\qquad
-\bar{\mathbf{b}}_{g,t}=\mathbf{b}_{g,t-1},
-\qquad
-\bar{\mathbf{g}}_{t}=\mathbf{g}_{t-1}.
+\mathbf{z}_t\simeq h(\bar{\boldsymbol{\mu}}_t)
++\mathbf{H}_t(\mathbf{x}_t-\bar{\boldsymbol{\mu}}_t)
++\mathbf{v}_t
 \end{gathered}$$
 
----
-# ESKF - Prediction Covariance
-
-From the linearized error dynamics,
-
-$$\delta\mathbf{x}_{t}
-\simeq
-\mathbf{F}_{t}\delta\mathbf{x}_{t-1}
-+\mathbf{L}_{t}\mathbf{w}_{t}$$
-
-and the independence of
-$\delta\mathbf{x}_{t-1}$ and $\mathbf{w}_{t}$,
-
 $$\begin{gathered}
-\bar{\boldsymbol{\Sigma}}_{t}
-=\mathbb{E}
-\left[
-\delta\mathbf{x}_{t}\delta\mathbf{x}_{t}^{\top}
-\right],\\
-\boxed{
-\bar{\boldsymbol{\Sigma}}_{t}
-=\mathbf{F}_{t}\boldsymbol{\Sigma}_{t-1}\mathbf{F}_{t}^{\top}
-+\mathbf{L}_{t}\mathbf{R}_{t}\mathbf{L}_{t}^{\top}}.
+\mathbf{z}_t-h(\bar{\boldsymbol{\mu}}_t)
+\simeq\mathbf{H}_t(\mathbf{x}_t-\bar{\boldsymbol{\mu}}_t)
++\mathbf{v}_t
 \end{gathered}$$
 
-The nominal state follows $f$, while the covariance follows the local linear error model.
+]
 
----
-# ESKF - Measurement Residual
-
-Measurement model
-
-$$\mathbf{z}_{t}
-=h\left(\mathbf{x}_{t}^{\mathrm{true}},\mathbf{v}_{t}\right),
-\qquad
-\mathbf{v}_{t}\sim\mathcal{N}(\mathbf{0},\mathbf{Q}_{t})$$
-
-Insert
-$\mathbf{x}_{t}^{\mathrm{true}}
-=\bar{\boldsymbol{\mu}}_{t}\oplus\delta\mathbf{x}_{t}$:
-
-$$\mathbf{z}_{t}
-\simeq
-h(\bar{\boldsymbol{\mu}}_{t},\mathbf{0})
-+\mathbf{H}_{t}\delta\mathbf{x}_{t}
-+\mathbf{M}_{t}\mathbf{v}_{t}$$
-
-Thus the residual is
-
-$$\boxed{
-\mathbf{r}_{t}
-=\mathbf{z}_{t}-h(\bar{\boldsymbol{\mu}}_{t},\mathbf{0})
-\simeq
-\mathbf{H}_{t}\delta\mathbf{x}_{t}
-+\mathbf{M}_{t}\mathbf{v}_{t}}$$
-
----
-# ESKF - Measurement Jacobian
-
-The Jacobian must perturb the nominal state with $\oplus$.
-
-$$\mathbf{H}_{t}
-=\left.
-\frac{\partial
-h(\bar{\boldsymbol{\mu}}_{t}\oplus\delta\mathbf{x},\mathbf{0})}
-{\partial\delta\mathbf{x}}
-\right|_{\delta\mathbf{x}=\mathbf{0}}$$
-
-The measurement-noise Jacobian is
-
-$$\mathbf{M}_{t}
-=\left.
-\frac{\partial
-h(\bar{\boldsymbol{\mu}}_{t},\mathbf{v})}
-{\partial\mathbf{v}}
-\right|_{\mathbf{v}=\mathbf{0}}$$
-
-Therefore the effective residual covariance is
-
-$$\boxed{
-\widetilde{\mathbf{Q}}_{t}
-=\mathbf{M}_{t}\mathbf{Q}_{t}\mathbf{M}_{t}^{\top}}$$
-
-For additive measurement noise,
-$\mathbf{M}_{t}=\mathbf{I}$ and
-$\widetilde{\mathbf{Q}}_{t}=\mathbf{Q}_{t}$.
-
----
-# ESKF - Correction as MAP
-
-Prior error distribution
-
-$$\delta\mathbf{x}_{t}
-\sim
-\mathcal{N}
-\left(
-\mathbf{0},\bar{\boldsymbol{\Sigma}}_{t}
-\right)$$
-
-Linearized likelihood
-
-$$\mathbf{r}_{t}\mid\delta\mathbf{x}_{t}
-\sim
-\mathcal{N}
-\left(
-\mathbf{H}_{t}\delta\mathbf{x}_{t},
-\widetilde{\mathbf{Q}}_{t}
-\right)$$
-
-The maximum a posteriori estimate minimizes
-
-$$\boxed{
-\widehat{\delta\mathbf{x}}_{t}
-=\underset{\delta\mathbf{x}}{\operatorname{argmin}}
-\left[
-\delta\mathbf{x}^{\top}
-\bar{\boldsymbol{\Sigma}}_{t}^{-1}
-\delta\mathbf{x}
-+(\mathbf{r}_{t}-\mathbf{H}_{t}\delta\mathbf{x})^{\top}
-\widetilde{\mathbf{Q}}_{t}^{-1}
-(\mathbf{r}_{t}-\mathbf{H}_{t}\delta\mathbf{x})
-\right]}$$
-
----
-# ESKF - MAP Normal Equation
-
-Differentiate the MAP objective with respect to $\delta\mathbf{x}$.
+.pull-right.f-90[
+#### IEKF
 
 $$\begin{gathered}
-\frac{1}{2}
-\frac{\partial}{\partial\delta\mathbf{x}}
-\left(
-\delta\mathbf{x}^{\top}
-\bar{\boldsymbol{\Sigma}}_{t}^{-1}\delta\mathbf{x}
-\right)
-=\bar{\boldsymbol{\Sigma}}_{t}^{-1}\delta\mathbf{x},\\
-\frac{1}{2}
-\frac{\partial}{\partial\delta\mathbf{x}}
-\left[
-(\mathbf{r}_{t}-\mathbf{H}_{t}\delta\mathbf{x})^{\top}
-\widetilde{\mathbf{Q}}_{t}^{-1}
-(\mathbf{r}_{t}-\mathbf{H}_{t}\delta\mathbf{x})
-\right]\\
-=-\mathbf{H}_{t}^{\top}
-\widetilde{\mathbf{Q}}_{t}^{-1}
-(\mathbf{r}_{t}-\mathbf{H}_{t}\delta\mathbf{x}).
-\end{gathered}$$
-
-Setting the gradient to zero gives
-
-$$\boxed{
-\left(
-\bar{\boldsymbol{\Sigma}}_{t}^{-1}
-+\mathbf{H}_{t}^{\top}\widetilde{\mathbf{Q}}_{t}^{-1}\mathbf{H}_{t}
-\right)
-\widehat{\delta\mathbf{x}}_{t}
-=\mathbf{H}_{t}^{\top}
-\widetilde{\mathbf{Q}}_{t}^{-1}\mathbf{r}_{t}}$$
-
----
-# ESKF - From MAP to Kalman Gain
-
-Define
-
-$$\mathbf{K}_{t}
-=\bar{\boldsymbol{\Sigma}}_{t}\mathbf{H}_{t}^{\top}
-\left(
-\mathbf{H}_{t}\bar{\boldsymbol{\Sigma}}_{t}\mathbf{H}_{t}^{\top}
-+\widetilde{\mathbf{Q}}_{t}
-\right)^{-1}$$
-
-It satisfies
-
-$$\left(
-\bar{\boldsymbol{\Sigma}}_{t}^{-1}
-+\mathbf{H}_{t}^{\top}\widetilde{\mathbf{Q}}_{t}^{-1}\mathbf{H}_{t}
-\right)\mathbf{K}_{t}
-=\mathbf{H}_{t}^{\top}\widetilde{\mathbf{Q}}_{t}^{-1}$$
-
-so the MAP solution becomes
-
-$$\boxed{
-\widehat{\delta\mathbf{x}}_{t}
-=\mathbf{K}_{t}\mathbf{r}_{t}}$$
-
-This is the Kalman correction, but it estimates the local error rather than the full state.
-
----
-# ESKF - Posterior Covariance
-
-The inverse Hessian of the quadratic MAP objective is
-
-$$\boldsymbol{\Sigma}_{t}^{\mathrm{corr}}
-=\left(
-\bar{\boldsymbol{\Sigma}}_{t}^{-1}
-+\mathbf{H}_{t}^{\top}\widetilde{\mathbf{Q}}_{t}^{-1}\mathbf{H}_{t}
-\right)^{-1}$$
-
-Using the matrix inversion lemma,
-
-$$\boxed{
-\boldsymbol{\Sigma}_{t}^{\mathrm{corr}}
-=
-\left(
-\mathbf{I}-\mathbf{K}_{t}\mathbf{H}_{t}
-\right)
-\bar{\boldsymbol{\Sigma}}_{t}}$$
-
-The numerically safer Joseph form is
-
-$$\boldsymbol{\Sigma}_{t}^{\mathrm{corr}}
-=
-(\mathbf{I}-\mathbf{K}_{t}\mathbf{H}_{t})
-\bar{\boldsymbol{\Sigma}}_{t}
-(\mathbf{I}-\mathbf{K}_{t}\mathbf{H}_{t})^{\top}
-+\mathbf{K}_{t}\widetilde{\mathbf{Q}}_{t}\mathbf{K}_{t}^{\top}$$
-
----
-# ESKF - Injection
-
-The correction is first obtained in the tangent space.
-
-$$\widehat{\delta\mathbf{x}}_{t}
-=\mathbf{K}_{t}\mathbf{r}_{t}$$
-
-It is then injected into the nominal state.
-
-$$\boxed{
-\boldsymbol{\mu}_{t}
-=\bar{\boldsymbol{\mu}}_{t}
-\oplus\widehat{\delta\mathbf{x}}_{t}}$$
-
-The remaining error relative to the new nominal state is
-
-$$\delta\mathbf{x}_{t}^{+}
-=
-\left(
-\bar{\boldsymbol{\mu}}_{t}\oplus\delta\mathbf{x}_{t}
-\right)
-\ominus
-\left(
-\bar{\boldsymbol{\mu}}_{t}
-\oplus\widehat{\delta\mathbf{x}}_{t}
-\right)$$
-
-Injection changes the reference point at which the error covariance is expressed.
-
----
-# ESKF - Reset
-
-After injection, the estimated error mean is reset to zero.
-
-$$\widehat{\delta\mathbf{x}}_{t}^{+}=\mathbf{0}$$
-
-Define the reset Jacobian
-
-$$\mathbf{G}_{t}
-=\left.
-\frac{\partial\delta\mathbf{x}_{t}^{+}}
-{\partial
-(\delta\mathbf{x}_{t}-\widehat{\delta\mathbf{x}}_{t})}
-\right|_{\delta\mathbf{x}_{t}=\widehat{\delta\mathbf{x}}_{t}}$$
-
-Then transport the covariance to the tangent space of the updated nominal state.
-
-$$\boxed{
-\boldsymbol{\Sigma}_{t}
-=\mathbf{G}_{t}
-\boldsymbol{\Sigma}_{t}^{\mathrm{corr}}
-\mathbf{G}_{t}^{\top}}$$
-
-For Euclidean components, $\mathbf{G}_{t}=\mathbf{I}$.
-For rotational components, the reference change is not identity.
-
----
-# ESKF - Reset Jacobian for Rotation
-
-With a right perturbation,
-
-$$\begin{gathered}
-\mathbf{R}^{\mathrm{true}}
-=\bar{\mathbf{R}}\operatorname{Exp}
-([\delta\boldsymbol{\theta}^{\mathrm{true}}]_{\times}),\\
-\widehat{\mathbf{R}}
-=\bar{\mathbf{R}}\operatorname{Exp}
-([\widehat{\delta\boldsymbol{\theta}}]_{\times}),\\
-\mathbf{R}^{\mathrm{true}}
-=\widehat{\mathbf{R}}\operatorname{Exp}
-([\delta\boldsymbol{\theta}^{+}]_{\times}).
-\end{gathered}$$
-
-Therefore,
-
-$$\delta\boldsymbol{\theta}^{+}
-=\operatorname{Log}
-\left[
-\operatorname{Exp}
-(-[\widehat{\delta\boldsymbol{\theta}}]_{\times})
-\operatorname{Exp}
-([\delta\boldsymbol{\theta}^{\mathrm{true}}]_{\times})
-\right]$$
-
-Let
-$\delta\boldsymbol{\theta}^{\mathrm{true}}
-=\widehat{\delta\boldsymbol{\theta}}+\boldsymbol{\epsilon}$.
-First-order expansion gives
-
-$$\boxed{
-\delta\boldsymbol{\theta}^{+}
-\simeq
-\mathbf{J}_{r}
-(\widehat{\delta\boldsymbol{\theta}})
-\boldsymbol{\epsilon},
-\qquad
-\mathbf{G}_{\theta}
-\simeq
-\mathbf{I}
--\frac{1}{2}
-[\widehat{\delta\boldsymbol{\theta}}]_{\times}}$$
-
----
-# ESKF - Summary
-
-Prediction
-
-$$\begin{gathered}
-\bar{\boldsymbol{\mu}}_{t}
-=f(\boldsymbol{\mu}_{t-1},\mathbf{u}_{t},\mathbf{0}),\\
-\bar{\boldsymbol{\Sigma}}_{t}
-=\mathbf{F}_{t}\boldsymbol{\Sigma}_{t-1}\mathbf{F}_{t}^{\top}
-+\mathbf{L}_{t}\mathbf{R}_{t}\mathbf{L}_{t}^{\top}.
-\end{gathered}$$
-
-Correction
-
-$$\begin{gathered}
-\mathbf{r}_{t}
-=\mathbf{z}_{t}-h(\bar{\boldsymbol{\mu}}_{t},\mathbf{0}),\\
-\mathbf{K}_{t}
-=\bar{\boldsymbol{\Sigma}}_{t}\mathbf{H}_{t}^{\top}
-(\mathbf{H}_{t}\bar{\boldsymbol{\Sigma}}_{t}\mathbf{H}_{t}^{\top}
-+\widetilde{\mathbf{Q}}_{t})^{-1},\\
-\widehat{\delta\mathbf{x}}_{t}
-=\mathbf{K}_{t}\mathbf{r}_{t}.
-\end{gathered}$$
-
-Injection and reset
-
-$$\begin{gathered}
-\boldsymbol{\mu}_{t}
-=\bar{\boldsymbol{\mu}}_{t}\oplus\widehat{\delta\mathbf{x}}_{t},\\
-\boldsymbol{\Sigma}_{t}
-=\mathbf{G}_{t}
-(\mathbf{I}-\mathbf{K}_{t}\mathbf{H}_{t})
-\bar{\boldsymbol{\Sigma}}_{t}
-\mathbf{G}_{t}^{\top}.
-\end{gathered}$$
-
----
-# From ESKF to Iteration
-
-The ESKF linearizes the measurement once at the predicted state.
-
-$$h(\bar{\boldsymbol{\mu}}_{t}\oplus\delta\mathbf{x})
-\simeq
-h(\bar{\boldsymbol{\mu}}_{t})
-+\mathbf{H}_{t}\delta\mathbf{x}$$
-
-If the initial residual is large or $h$ is strongly nonlinear, one tangent approximation may be insufficient.
-
-$$\bar{\boldsymbol{\mu}}_{t}
-\longrightarrow
-\boldsymbol{\mu}_{t,1}
-\longrightarrow
-\boldsymbol{\mu}_{t,2}
-\longrightarrow
-\cdots
-\longrightarrow
-\boldsymbol{\mu}_{t,\star}$$
-
-The iterative filter repeats only the measurement linearization and correction.
-The prediction prior remains fixed during the iterations.
-
----
-# IEKF and IESKF
-
-- Iterated EKF: repeated measurement linearization in a Euclidean state.
-- Iterated ESKF: repeated measurement linearization in a local error state on a manifold.
-
-Both solve the same nonlinear posterior more accurately by Gauss-Newton iterations.
-
-$$\boldsymbol{\mu}_{t,0}
-=\bar{\boldsymbol{\mu}}_{t}$$
-
-At iteration $j$,
-
-$$\boldsymbol{\mu}_{t,j+1}
-=\boldsymbol{\mu}_{t,j}
-\oplus\delta\boldsymbol{\mu}_{t,j}$$
-
-The error coordinate and its covariance must be transported whenever the linearization point changes.
-
----
-# IESKF - MAP Objective
-
-The predicted state and covariance define a fixed prior.
-
-$$\mathbf{x}_{t}
-\sim
-\mathcal{N}_{\mathcal{M}}
-\left(
-\bar{\boldsymbol{\mu}}_{t},
-\bar{\boldsymbol{\Sigma}}_{t}
-\right)$$
-
-The nonlinear MAP problem is
-
-$$\boxed{
-\boldsymbol{\mu}_{t}^{\star}
-=\underset{\mathbf{x}\in\mathcal{M}}{\operatorname{argmin}}
-\left[
-\|\mathbf{x}\ominus\bar{\boldsymbol{\mu}}_{t}\|_
-{\bar{\boldsymbol{\Sigma}}_{t}^{-1}}^{2}
-+\|\mathbf{z}_{t}-h(\mathbf{x},\mathbf{0})\|_
-{\widetilde{\mathbf{Q}}_{t}^{-1}}^{2}
-\right]}$$
-
-where
-
-$$\|\mathbf{a}\|_{\mathbf{W}}^{2}
-=\mathbf{a}^{\top}\mathbf{W}\mathbf{a}$$
-
----
-# IESKF - Prior Transport
-
-At the current iterate $\boldsymbol{\mu}_{t,j}$, define
-
-$$\mathbf{d}_{t,j}
-=\boldsymbol{\mu}_{t,j}
-\ominus\bar{\boldsymbol{\mu}}_{t}$$
-
-For a local increment $\delta\boldsymbol{\mu}$,
-
-$$\left(
-\boldsymbol{\mu}_{t,j}\oplus\delta\boldsymbol{\mu}
-\right)
-\ominus\bar{\boldsymbol{\mu}}_{t}
-\simeq
-\mathbf{d}_{t,j}
-+\mathbf{J}_{t,j}\delta\boldsymbol{\mu}$$
-
-with
-
-$$\mathbf{J}_{t,j}
-=\left.
-\frac{\partial
-\left[
-(\boldsymbol{\mu}_{t,j}\oplus\delta\boldsymbol{\mu})
-\ominus\bar{\boldsymbol{\mu}}_{t}
-\right]}
-{\partial\delta\boldsymbol{\mu}}
-\right|_{\delta\boldsymbol{\mu}=\mathbf{0}}$$
-
----
-# IESKF - Prior in the Current Tangent
-
-Define the transported prior covariance and prior offset
-
-$$\begin{gathered}
-\bar{\boldsymbol{\Sigma}}_{t,j}
-=\mathbf{J}_{t,j}^{-1}
-\bar{\boldsymbol{\Sigma}}_{t}
-\mathbf{J}_{t,j}^{-\top},\\
-\mathbf{e}_{t,j}
-=\mathbf{J}_{t,j}^{-1}\mathbf{d}_{t,j}.
-\end{gathered}$$
-
-Then
-
-$$\|\mathbf{d}_{t,j}
-+\mathbf{J}_{t,j}\delta\boldsymbol{\mu}\|_
-{\bar{\boldsymbol{\Sigma}}_{t}^{-1}}^{2}
-=
-\|\delta\boldsymbol{\mu}+\mathbf{e}_{t,j}\|_
-{\bar{\boldsymbol{\Sigma}}_{t,j}^{-1}}^{2}$$
-
-The prior is centered at $-\mathbf{e}_{t,j}$ in the current tangent space, not at zero.
-
----
-# IESKF - Measurement Linearization
-
-Residual at the current iterate
-
-$$\mathbf{r}_{t,j}
-=\mathbf{z}_{t}
--h(\boldsymbol{\mu}_{t,j},\mathbf{0})$$
-
-Linearize using a local increment.
-
-$$h(
-\boldsymbol{\mu}_{t,j}\oplus\delta\boldsymbol{\mu},
-\mathbf{0})
-\simeq
-h(\boldsymbol{\mu}_{t,j},\mathbf{0})
-+\mathbf{H}_{t,j}\delta\boldsymbol{\mu}$$
-
-$$\mathbf{H}_{t,j}
-=\left.
-\frac{\partial
-h(\boldsymbol{\mu}_{t,j}\oplus\delta\boldsymbol{\mu},\mathbf{0})}
-{\partial\delta\boldsymbol{\mu}}
-\right|_{\delta\boldsymbol{\mu}=\mathbf{0}}$$
-
-Thus
-
-$$\mathbf{r}_{t,j}
-\simeq
-\mathbf{H}_{t,j}\delta\boldsymbol{\mu}
-+\mathbf{M}_{t,j}\mathbf{v}_{t}$$
-
----
-# IESKF - Quadratic Subproblem
-
-Combining the transported prior and the linearized measurement gives
-
-$$\boxed{
-\delta\boldsymbol{\mu}_{t,j}
-=\underset{\delta\boldsymbol{\mu}}{\operatorname{argmin}}
-\left[
-\|\delta\boldsymbol{\mu}+\mathbf{e}_{t,j}\|_
-{\bar{\boldsymbol{\Sigma}}_{t,j}^{-1}}^{2}
-+\|\mathbf{r}_{t,j}
--\mathbf{H}_{t,j}\delta\boldsymbol{\mu}\|_
-{\widetilde{\mathbf{Q}}_{t,j}^{-1}}^{2}
-\right]}$$
-
-where
-
-$$\widetilde{\mathbf{Q}}_{t,j}
-=\mathbf{M}_{t,j}\mathbf{Q}_{t}\mathbf{M}_{t,j}^{\top}$$
-
-This is one Gauss-Newton step of the nonlinear MAP problem.
-
----
-# IESKF - Normal Equation
-
-Differentiate the quadratic subproblem.
-
-$$\begin{gathered}
-\bar{\boldsymbol{\Sigma}}_{t,j}^{-1}
-(\delta\boldsymbol{\mu}+\mathbf{e}_{t,j})
--\mathbf{H}_{t,j}^{\top}
-\widetilde{\mathbf{Q}}_{t,j}^{-1}
-(\mathbf{r}_{t,j}-\mathbf{H}_{t,j}\delta\boldsymbol{\mu})
-=\mathbf{0},\\
-\left(
-\bar{\boldsymbol{\Sigma}}_{t,j}^{-1}
-+\mathbf{H}_{t,j}^{\top}
-\widetilde{\mathbf{Q}}_{t,j}^{-1}
+\boldsymbol{\mu}_{t,0}=\bar{\boldsymbol{\mu}}_t,\\
 \mathbf{H}_{t,j}
-\right)
-\delta\boldsymbol{\mu}_{t,j}\\
-=\mathbf{H}_{t,j}^{\top}
-\widetilde{\mathbf{Q}}_{t,j}^{-1}\mathbf{r}_{t,j}
--\bar{\boldsymbol{\Sigma}}_{t,j}^{-1}\mathbf{e}_{t,j}.
+=\left.
+\frac{\partial h}{\partial\mathbf{x}}
+\right|_{\mathbf{x}=\boldsymbol{\mu}_{t,j}}
 \end{gathered}$$
-
-The additional prior-offset term appears because the iterate is no longer the predicted mean.
-
----
-# IESKF - Kalman Form
-
-Define the iteration-dependent gain
-
-$$\mathbf{K}_{t,j}
-=\bar{\boldsymbol{\Sigma}}_{t,j}
-\mathbf{H}_{t,j}^{\top}
-\left(
-\mathbf{H}_{t,j}\bar{\boldsymbol{\Sigma}}_{t,j}
-\mathbf{H}_{t,j}^{\top}
-+\widetilde{\mathbf{Q}}_{t,j}
-\right)^{-1}$$
-
-Using
 
 $$\begin{gathered}
-\mathbf{A}_{t,j}^{-1}
-\mathbf{H}_{t,j}^{\top}
-\widetilde{\mathbf{Q}}_{t,j}^{-1}
-=\mathbf{K}_{t,j},\\
-\mathbf{A}_{t,j}^{-1}
-\bar{\boldsymbol{\Sigma}}_{t,j}^{-1}
-=\mathbf{I}-\mathbf{K}_{t,j}\mathbf{H}_{t,j},
+\mathbf{z}_t\simeq h(\boldsymbol{\mu}_{t,j})
++\mathbf{H}_{t,j}(\mathbf{x}_t-\boldsymbol{\mu}_{t,j})
++\mathbf{v}_t
 \end{gathered}$$
-
-the increment becomes
-
-$$\boxed{
-\delta\boldsymbol{\mu}_{t,j}
-=\mathbf{K}_{t,j}
-\left(
-\mathbf{r}_{t,j}
-+\mathbf{H}_{t,j}\mathbf{e}_{t,j}
-\right)
--\mathbf{e}_{t,j}}$$
-
----
-# IESKF - Why the Extra Term?
-
-The naive repeated-EKF step would use
-
-$$\delta\boldsymbol{\mu}_{t,j}
-=\mathbf{K}_{t,j}\mathbf{r}_{t,j}$$
-
-but this incorrectly assumes that the fixed prior is centered at every new iterate.
-
-The correct step is
-
-$$\delta\boldsymbol{\mu}_{t,j}
-=\mathbf{K}_{t,j}
-(\mathbf{r}_{t,j}
-+\mathbf{H}_{t,j}\mathbf{e}_{t,j})
--\mathbf{e}_{t,j}$$
-
-At the first iteration,
-
-$$\boldsymbol{\mu}_{t,0}=\bar{\boldsymbol{\mu}}_{t}
-\quad\Longrightarrow\quad
-\mathbf{d}_{t,0}=\mathbf{e}_{t,0}=\mathbf{0}$$
-
-so the first IESKF step is exactly the ordinary ESKF correction.
-
----
-# IESKF - Iterative Update
-
-Initialize once after prediction.
-
-$$\boldsymbol{\mu}_{t,0}
-=\bar{\boldsymbol{\mu}}_{t}$$
-
-At each iteration,
 
 $$\begin{gathered}
-\mathbf{r}_{t,j}
-=\mathbf{z}_{t}-h(\boldsymbol{\mu}_{t,j},\mathbf{0}),\\
-\delta\boldsymbol{\mu}_{t,j}
-=\mathbf{K}_{t,j}
-(\mathbf{r}_{t,j}
-+\mathbf{H}_{t,j}\mathbf{e}_{t,j})
--\mathbf{e}_{t,j},\\
-\boldsymbol{\mu}_{t,j+1}
-=\boldsymbol{\mu}_{t,j}
-\oplus\delta\boldsymbol{\mu}_{t,j}.
+\mathbf{z}_t-h(\boldsymbol{\mu}_{t,j})
+\simeq\mathbf{H}_{t,j}(\mathbf{x}_t-\boldsymbol{\mu}_{t,j})
++\mathbf{v}_t
 \end{gathered}$$
 
-Stop when
 
-$$\|\delta\boldsymbol{\mu}_{t,j}\|<\epsilon$$
-
-or when the maximum iteration count is reached.
-
----
-# IESKF - Final Covariance and Reset
-
-After convergence at iteration $j=\star$,
-
-$$\boldsymbol{\Sigma}_{t,\star}^{\mathrm{corr}}
-=
-\left(
-\bar{\boldsymbol{\Sigma}}_{t,\star}^{-1}
-+\mathbf{H}_{t,\star}^{\top}
-\widetilde{\mathbf{Q}}_{t,\star}^{-1}
-\mathbf{H}_{t,\star}
-\right)^{-1}$$
-
-Equivalently,
-
-$$\boldsymbol{\Sigma}_{t,\star}^{\mathrm{corr}}
-=
-(\mathbf{I}-\mathbf{K}_{t,\star}\mathbf{H}_{t,\star})
-\bar{\boldsymbol{\Sigma}}_{t,\star}$$
-
-Inject the final increment and reset its tangent coordinate.
-
-$$\begin{gathered}
-\boldsymbol{\mu}_{t}
-=\boldsymbol{\mu}_{t,\star}
-\oplus\delta\boldsymbol{\mu}_{t,\star},\\
-\boldsymbol{\Sigma}_{t}
-=\mathbf{G}_{t,\star}
-\boldsymbol{\Sigma}_{t,\star}^{\mathrm{corr}}
-\mathbf{G}_{t,\star}^{\top}.
-\end{gathered}$$
-
----
-# IESKF - Complete Procedure
-
-1. Predict the nominal state and covariance.
-
-$$(\boldsymbol{\mu}_{t-1},\boldsymbol{\Sigma}_{t-1})
-\longrightarrow
-(\bar{\boldsymbol{\mu}}_{t},\bar{\boldsymbol{\Sigma}}_{t})$$
-
-2. Set $\boldsymbol{\mu}_{t,0}=\bar{\boldsymbol{\mu}}_{t}$.
-
-3. Repeat:
-   - transport the prior to the tangent at $\boldsymbol{\mu}_{t,j}$,
-   - recompute $\mathbf{r}_{t,j}$ and $\mathbf{H}_{t,j}$,
-   - solve for $\delta\boldsymbol{\mu}_{t,j}$,
-   - update $\boldsymbol{\mu}_{t,j+1}$.
-
-4. At convergence, compute the posterior covariance once.
-
-5. Inject the final correction and apply the reset Jacobian.
-
-The process prediction is not repeated inside the iteration.
-
----
-# ESKF vs. IESKF
-
-.f-90[
-
-| | ESKF | IESKF |
-|---|---|---|
-| Prediction | Once | Once |
-| Measurement linearization | Once at $\bar{\boldsymbol{\mu}}_t$ | Repeated at $\boldsymbol{\mu}_{t,j}$ |
-| Correction | One local step | Gauss-Newton steps |
-| Prior center | Predicted state | Fixed predicted state, transported locally |
-| Computation | Lower | Higher |
-| Strong nonlinearity | More sensitive | More robust |
 
 ]
 
-The core idea is unchanged:
+---
+# IEKF: Kalman Gain · Update
+- EKF는 한 번 업데이트하고, IEKF는 gain과 mean을 반복해서 계산
 
-$$\boxed{
-\text{estimate local error}
-\ \longrightarrow\
-\text{inject}
-\ \longrightarrow\
-\text{reset}}$$
+.pull-left.f-90[
+#### EKF
+
+$$\begin{gathered}
+\mathbf{K}_t
+=\bar{\boldsymbol{\Sigma}}_t\mathbf{H}_t^\top
+\left(
+\mathbf{H}_t\bar{\boldsymbol{\Sigma}}_t\mathbf{H}_t^\top
++\mathbf{Q}_t
+\right)^{-1}
+\end{gathered}$$
+
+$$\begin{gathered}
+\boldsymbol{\mu}_t=\bar{\boldsymbol{\mu}}_t
++\mathbf{K}_t\left(
+\mathbf{z}_t-h(\bar{\boldsymbol{\mu}}_t)
+\right)
+\end{gathered}$$
+
+$$\boldsymbol{\Sigma}_t
+=\left(\mathbf{I}-\mathbf{K}_t\mathbf{H}_t\right)
+\bar{\boldsymbol{\Sigma}}_t$$
+
+- $\mathbf{H}_t$, $\mathbf{K}_t$를 한 번 계산하여 mean과 covariance를 갱신
+]
+
+.pull-right.f-90[
+#### IEKF
+
+$$\begin{gathered}
+\mathbf{K}_{t,j}
+=\bar{\boldsymbol{\Sigma}}_t\mathbf{H}_{t,j}^\top
+\left(
+\mathbf{H}_{t,j}\bar{\boldsymbol{\Sigma}}_t\mathbf{H}_{t,j}^\top
++\mathbf{Q}_t
+\right)^{-1}
+\end{gathered}$$
+
+$$\begin{gathered}
+\boldsymbol{\mu}_{t,j+1}=\bar{\boldsymbol{\mu}}_t
++\mathbf{K}_{t,j}\Bigl[
+\mathbf{z}_t-h(\boldsymbol{\mu}_{t,j})
+-\mathbf{H}_{t,j}
+\left(\bar{\boldsymbol{\mu}}_t-\boldsymbol{\mu}_{t,j}\right)
+\Bigr]
+\end{gathered}$$
+
+$$\left\|
+\boldsymbol{\mu}_{t,j+1}-\boldsymbol{\mu}_{t,j}
+\right\|<\epsilon$$
+
+$$\begin{gathered}
+\boldsymbol{\mu}_t=\boldsymbol{\mu}_{t,n+1},\\
+\boldsymbol{\Sigma}_t
+=\left(\mathbf{I}
+-\mathbf{K}_{t,n}\mathbf{H}_{t,n}\right)
+\bar{\boldsymbol{\Sigma}}_t
+\end{gathered}$$
+
+- 마지막 반복 $j=n$까지 $\bar{\boldsymbol{\Sigma}}_t$를 고정하고, covariance는 수렴 후 한 번 갱신
+]
 
 ---
-# References
+# IEKF: 그림으로 보면
+
+<img src="fig/ekf_iekf_relinearization_ipad_v2.png" style="display:block; margin:0 auto; max-width:100%; max-height:460px;" alt="오른쪽 기준점에서 왼쪽의 고정된 x로 근사하며, IEKF는 기준점을 왼쪽 아래로 옮겨 같은 x에서의 근삿값을 개선하는 개념도">
+
+.center.f-80[
+두 방법 모두 1차 근사 · 같은 $x$에서 근삿값 비교 · IEKF는 오른쪽 기준점에서 왼쪽 아래로 선형화점 갱신
+]
+
+---
+# ESKF (Error-State Kalman Filter)
+
+- 이제 추정하고자 하는 State를 바꿔봅시다
+- State 자체를 직접 추정하지 않고, **error**를 추정함
+- 즉, 최적화하고 싶은 값이 아닌, error를 state로 둠
+  -  Error의 mean, covariance를 추정, ES-EKF라고도 함
+$$\mathbf{x}_t = \hat{\mathbf{x}}_t +  \delta\mathbf{x}_t$$
+  - $\mathbf{x}_t$ : KF, EKF에서 추정 대상으로 두었던 State
+  - $\hat{\mathbf{x}}_t$ : $t$ 에서의 nominal state. 여기에 error state를 더해 추정치를 완성
+  - $\delta\mathbf{x}_t$ : $t$ 에서의 **Error state**
+- 즉, $\delta\mathbf{x}_t$을 최적화해서, 예측한 nominal state인 $\hat{\mathbf{x}}_t$에 더하면 우리가 원하는 final state를 얻는다!
+
+---
+# ESKF 
+
+- 즉, 구하고자 하는 state는 결국 non-linear이다.
+  - 다만, error state는 linear!
+  - EKF는 nominal state와 error state의 합을 linearization을 통해 state estimation
+      - 연산속도가 error state만 추정했을 때 대비 느리고, 오차도 계속 누적됨
+  
+- 따라서, EKF 대비 ESKF의 장점은 아래와같음
+  - Minimal representation: 자세 오차를 최소 자유도로 표현하여 불필요한 파라미터와 특이점 문제를 줄임
+  - Stable linearization: Error state가 원점 근처의 작은 값으로 유지되어 선형화가 쉽고 정확함
+
+
+---
+# ESKF
+- 따라서, ESKF의 각 step마다의 model은 아래와 같이 쓸 수 있음
+- Error-state Motion Model:
+$$\hat{\mathbf{x}}_t+\delta\mathbf{x}_t=f(\hat{\mathbf{x}}_{t-1},
+\delta\mathbf{x}_{t-1},\mathbf{u}_t) + \mathbf{w}_t \text{,} \quad \mathbf{w}_t\sim\mathcal{N}(\mathbf{0},\mathbf{R}_t)$$
+  - Taylor expansion : 
+  $$f(\hat{\mathbf{x}}_{t-1},\delta\mathbf{x}_{t-1},\mathbf{u}_t) 
+  \approx f(\hat{\mathbf{x}}_{t-1},\widehat{\delta\mathbf{x}}_{t-1},\mathbf{u}_t) + \mathbf{J}_t(\delta\mathbf{x}_{t-1} - \widehat{\delta\mathbf{x}}_{t-1})$$
+
+
+- Error-state Observation Model:
+$$\mathbf{z}_t =h(\hat{\mathbf{x}}_t,\delta\mathbf{x}_t) + \mathbf{v}_t \text{,} \quad \mathbf{v}_t\sim\mathcal{N}(\mathbf{0},\mathbf{Q}_t)$$
+    - Taylor expansion : 
+    $$h(\hat{\mathbf{x}}_t,\delta\mathbf{x}_t) 
+    \approx h(\hat{\mathbf{x}}_t,\widehat{\delta\mathbf{x}}_t) + \mathbf{H}_t(\delta\mathbf{x}_t - \widehat{\delta\mathbf{x}}_t)$$
+---
+# ESKF
+#### Prediction Step
+
+- 수식을 하나씩 뜯어봅시다. 먼저 Motion model
+  - Nominal state는 비선형 motion model로 예측하고, error state는 1차 선형화한 모델로 전파
+$$\hat{\mathbf{x}}_t+\delta\mathbf{x}_t
+\simeq
+f(\hat{\mathbf{x}}_{t-1},
+\widehat{\delta\mathbf{x}}_{t-1},
+\mathbf{u}_t)+\mathbf{J}_t(\delta\mathbf{x}_{t-1}-\widehat{\delta\mathbf{x}}_{t-1})
++\mathbf{w}_t$$
+
+- EKF랑도 똑같지요?
+$$\begin{gathered}
+\mathbf{x}_t
+\simeq
+f(\boldsymbol{\mu}_{t-1},\mathbf{u}_t)
++\mathbf{J}_t
+(\mathbf{x}_{t-1}-\boldsymbol{\mu}_{t-1})
++\mathbf{w}_t
+\end{gathered}$$
+
+---
+# ESKF
+- 전개해 봅시다
+  - 이전 correction의 보정량은 nominal state에 이미 반영: reset 후 $\widehat{\delta\mathbf{x}}_{t-1}=\mathbf{0}$
+  - 실제로 남은 error $\delta\mathbf{x}_{t-1}$를 0으로 두는 것은 아님
+$$\hat{\mathbf{x}}_t+\delta\mathbf{x}_t
+\simeq\mathbf{J}_t\delta\mathbf{x}_{t-1}
++f(\hat{\mathbf{x}}_{t-1},\widehat{\delta\mathbf{x}}_{t-1},\mathbf{u}_t)
+-\mathbf{J}_t\widehat{\delta\mathbf{x}}_{t-1}
++\mathbf{w}_t$$
+$$\rightarrow \hat{\mathbf{x}}_t+\delta\mathbf{x}_t
+\simeq
+\mathbf{J}_t\delta\mathbf{x}_{t-1}
++f(\hat{\mathbf{x}}_{t-1}, \mathbf{0}, \mathbf{u}_t)
+-\mathbf{J}_t\mathbf{0}
++\mathbf{w}_t$$
+
+  - $\hat{\mathbf{x}}_t=f(\hat{\mathbf{x}}_{t-1},\mathbf{0},\mathbf{u}_t)$이므로 nominal prediction을 양쪽에서 빼면
+$$\therefore \delta\mathbf{x}_t \simeq \mathbf{J}_t\delta\mathbf{x}_{t-1} + \mathbf{w}_t,\qquad
+\mathbf{J}_t
+=\left.\frac{\partial f}{\partial\delta\mathbf{x}_{t-1}}\right|_{\delta\mathbf{x}_{t-1}=\mathbf{0}}$$
+
+
+
+<!-- ---
+# ESKF
+- 수식을 $\delta\mathbf{x}$에 대해서 정리해보면
+- $\bar{\delta\mathbf{x}}_{t-1}$과 $\delta\mathbf{x}_{t-1}$의 차이를 확실히 하고 가야 함
+  - 앞에서 0으로 두었던 $\bar{\delta\mathbf{x}}_{t-1}$은 이전 timestamp 에서 추정한 error의 mean
+      - 이전 timestamp에서 이미 error는 적용됬으므로, 이번 timestamp에서는 **0으로 초기화**되어야 함
+            - 안그러면 추정된 error가 계속해서 누적됨
+  - $\delta\mathbf{x}_{t-1}$는 이전 timestamp에서 실제로 남은 error
+
+- 따라서, 
+$$\hat{\mathbf{x}}_t+\delta\mathbf{x}_t
+\simeq
+\mathbf{J}_t\delta\mathbf{x}_{t-1}
++f(\hat{\mathbf{x}}_{t-1}, \mathbf{0}, \mathbf{u}_t)
+-\mathbf{J}_t\bar{\delta\mathbf{x}}_{t-1}
++\mathbf{w}_t$$
+$$\rightarrow \delta\mathbf{x}_t = \mathbf{J}_t\delta\mathbf{x}_{t-1} + \mathbf{w}_t$$ -->
+
+
+---
+# ESKF
+
+
+- Error state
+  - 결국, 우리가 prediction 하고자 하는 **error state**는 이전 timestamp의 error state와 process noise의 조합
+$$\delta\mathbf{x}_t \simeq \mathbf{J}_t\delta\mathbf{x}_{t-1} + \mathbf{w}_t$$
+
+.pull-left[
+- Mean : 
+.f-70[이전 error의 평균은 nominal을 기준으로 0이며, process noise의 평균도 0이므로, 예측한 error의 평균 역시 0으로 유지]
+$$\overline{\delta\mathbf{x}}_t
+=\mathbf{J}_t\widehat{\delta\mathbf{x}}_{t-1}
++\mathbf{0}
+=\mathbf{0}$$
+]
+
+.pull-right[
+- Covariance : error state로 편미분한 변화량은 공분산에 반영
+$$\boldsymbol{\Sigma}_{t|t-1}
+=\mathbf{J}_t\boldsymbol{\Sigma}_{t-1}\mathbf{J}_t^\top
++\mathbf{R}_t$$
+$$\delta\mathbf{x}_t\sim\mathcal{N}(\overline{\delta\mathbf{x}}_t,\boldsymbol{\Sigma}_{t|t-1})
+=\mathcal{N}(\mathbf{0},\boldsymbol{\Sigma}_{t|t-1})$$
+]
+
+---
+# ESKF
+#### Correction step
+
+- Correction step의 input은 Prediction에서 구한 nominal state와 error state
+$$(\hat{\mathbf{x}}_t, \ \delta\mathbf{x}_t\sim\mathcal{N}(\overline{\delta\mathbf{x}}_t,\boldsymbol{\Sigma}_{t|t-1}))$$
+
+- Observation model을 $\delta\mathbf{x}_t=\overline{\delta\mathbf{x}}_t$ 주변에서 1차 근사하고, 괄호를 전개하면
+$$\begin{gathered}
+\mathbf{z}_t
+\simeq h(\hat{\mathbf{x}}_t,\overline{\delta\mathbf{x}}_t)
++\mathbf{H}_t\left(\delta\mathbf{x}_t-\overline{\delta\mathbf{x}}_t\right)
++\mathbf{v}_t\\
+=\mathbf{H}_t\delta\mathbf{x}_t
++h(\hat{\mathbf{x}}_t,\overline{\delta\mathbf{x}}_t)
+-\mathbf{H}_t\overline{\delta\mathbf{x}}_t
++\mathbf{v}_t
+\rightarrow h(\hat{\mathbf{x}}_t,\mathbf{0})
++\mathbf{H}_t\delta\mathbf{x}_t
++\mathbf{v}_t
+\end{gathered}$$
+
+- Predicted error mean $\overline{\delta\mathbf{x}}_t=\mathbf{0}$을 대입한 것. 실제 error 항 $\mathbf{H}_t\delta\mathbf{x}_t$는 남음
+$$\widehat{\mathbf{z}}_t=h(\hat{\mathbf{x}}_t,\mathbf{0}),\qquad
+\mathbf{z}_t-\widehat{\mathbf{z}}_t
+\simeq\mathbf{H}_t\delta\mathbf{x}_t
++\mathbf{v}_t$$
+
+
+---
+# ESKF
+- Kalman gain의 구조는 EKF와 동일
+
+.pull-left[
+#### EKF
+
+$$\begin{gathered}
+\mathbf{K}_t^{\mathrm{EKF}}
+=\bar{\boldsymbol{\Sigma}}_t\mathbf{H}_t^\top
+\left(
+\mathbf{H}_t\bar{\boldsymbol{\Sigma}}_t\mathbf{H}_t^\top
++\mathbf{Q}_t
+\right)^{-1}
+\end{gathered}$$
+
+
+#### Mean · Covariance Update
+
+$$\begin{gathered}
+\boldsymbol{\mu}_t
+=\bar{\boldsymbol{\mu}}_t
++\mathbf{K}_t^{\mathrm{EKF}}
+\left(\mathbf{z}_t-\widehat{\mathbf{z}}_t\right),\\
+\boldsymbol{\Sigma}_t
+=\left(\mathbf{I}-\mathbf{K}_t^{\mathrm{EKF}}\mathbf{H}_t\right)
+\bar{\boldsymbol{\Sigma}}_t
+\end{gathered}$$
+]
+
+.pull-right[
+#### ESKF
+
+
+$$\mathbf{K}_t^{\mathrm{ESKF}}
+=\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_t^\top
+\left(\mathbf{H}_t\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_t^\top
++\mathbf{Q}_t\right)^{-1}$$
+
+
+#### Mean · Covariance Update
+
+$$\begin{gathered}
+\widehat{\delta\mathbf{x}}_t
+=\overline{\delta\mathbf{x}}_t
++\mathbf{K}_t^{\mathrm{ESKF}}
+\left(
+\mathbf{z}_t-\widehat{\mathbf{z}}_t
+\right),\quad \overline{\delta\mathbf{x}}_t=\mathbf{0}\\
+\boldsymbol{\Sigma}_{t|t}
+=\left(\mathbf{I}-\mathbf{K}_t^{\mathrm{ESKF}}\mathbf{H}_t\right)
+\boldsymbol{\Sigma}_{t|t-1}
+\end{gathered}$$
+]
+
+
+---
+# IESKF (Iterated Error-State Kalman Filter)
+
+- 이제 ESKF의 error-state 표현에 IEKF의 반복 선형화를 적용해 봅시다
+- IEKF와 같이 **보정된 추정값에서 재선형화와 보정을 반복**
+
+.pull-left.f-90[
+#### ESKF
+
+- 현재 nominal 기준의 error를 추정
+- 보정량을 nominal에 한 번 반영
+
+$$\mathbf{x}_t=\hat{\mathbf{x}}_t+\delta\mathbf{x}_t$$
+
+$$\hat{\mathbf{x}}_{t|t}=\hat{\mathbf{x}}_t+\widehat{\delta\mathbf{x}}_t$$
+]
+
+.pull-right.f-90[
+#### IESKF
+
+- 현재 nominal 기준의 error를 다시 추정
+- 보정된 nominal에서 다시 선형화
+
+$$\mathbf{x}_t=\hat{\mathbf{x}}_{t,j}+\delta\mathbf{x}_{t,j}$$
+
+$$\hat{\mathbf{x}}_{t,j+1}=\hat{\mathbf{x}}_{t,j}+\widehat{\delta\mathbf{x}}_{t,j}$$
+]
+
+<div style="clear:both;"></div>
+
+- 실제 error는 $\delta\mathbf{x}_{t,j}$, 이번 반복에서 추정한 보정량은 $\widehat{\delta\mathbf{x}}_{t,j}$
 
 .f-80[
+이하 앞에서 사용한 덧셈 error 표현과 additive noise 기준. 회전 좌표변환의 상세 내용은 별도 부록.
+]
 
-- Gyubeom Im, “Notes on Kalman Filter,” arXiv:2406.06427, 2024.
+---
+# IESKF: Commonality
 
-- Joan Solà, “Quaternion Kinematics for the Error-State Kalman Filter,” arXiv:1711.02508, 2017.
+- Prediction step은 ESKF와 동일
 
-- Dongjiao He, Wei Xu, and Fu Zhang, “Kalman Filters on Differentiable Manifolds,” arXiv:2102.03804, 2021.
+.pull-left.f-90[
+#### ESKF
 
-- Wei Xu and Fu Zhang, “FAST-LIO: A Fast, Robust LiDAR-Inertial Odometry Package by Tightly-Coupled Iterated Kalman Filter,” IEEE Robotics and Automation Letters, 2021.
+$$\hat{\mathbf{x}}_t=f(\hat{\mathbf{x}}_{t-1},\mathbf{0},\mathbf{u}_t)$$
 
+$$\delta\mathbf{x}_t\simeq\mathbf{J}_t\delta\mathbf{x}_{t-1}+\mathbf{w}_t$$
+
+$$\overline{\delta\mathbf{x}}_t=\mathbf{J}_t\widehat{\delta\mathbf{x}}_{t-1}=\mathbf{0}$$
+
+$$\boldsymbol{\Sigma}_{t|t-1}=\mathbf{J}_t\boldsymbol{\Sigma}_{t-1|t-1}\mathbf{J}_t^\top+\mathbf{R}_t$$
+]
+
+.pull-right.f-90[
+#### IESKF
+
+$$\hat{\mathbf{x}}_t=f(\hat{\mathbf{x}}_{t-1},\mathbf{0},\mathbf{u}_t)$$
+
+$$\delta\mathbf{x}_t\simeq\mathbf{J}_t\delta\mathbf{x}_{t-1}+\mathbf{w}_t$$
+
+$$\overline{\delta\mathbf{x}}_t=\mathbf{J}_t\widehat{\delta\mathbf{x}}_{t-1}=\mathbf{0}$$
+
+$$\boldsymbol{\Sigma}_{t|t-1}=\mathbf{J}_t\boldsymbol{\Sigma}_{t-1|t-1}\mathbf{J}_t^\top+\mathbf{R}_t$$
+]
+
+<div style="clear:both;"></div>
+
+- Prediction에서 얻은 nominal로 첫 반복을 시작
+
+$$\hat{\mathbf{x}}_{t,0}=\hat{\mathbf{x}}_t$$
+
+- 반복 중에는 **처음 prior와 같은 측정**을 유지. Prediction을 다시 수행하는 것이 아님
+
+---
+# IESKF: Difference
+
+- ESKF는 한 번 선형화, IESKF는 **보정된 nominal에서 다시 선형화**
+
+.pull-left.f-90[
+#### ESKF
+$$\mathbf{z}_t\simeq h(\hat{\mathbf{x}}_t,\mathbf{0})+\mathbf{H}_t\delta\mathbf{x}_t+\mathbf{v}_t$$
+$$\mathbf{z}_t-h(\hat{\mathbf{x}}_t,\mathbf{0})\simeq\mathbf{H}_t\delta\mathbf{x}_t+\mathbf{v}_t$$
+]
+
+.pull-right.f-90[
+#### IESKF
+$$\mathbf{z}_t\simeq h(\hat{\mathbf{x}}_{t,j},\mathbf{0})+\mathbf{H}_{t,j}\delta\mathbf{x}_{t,j}+\mathbf{v}_t$$
+$$\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0})\simeq\mathbf{H}_{t,j}\delta\mathbf{x}_{t,j}+\mathbf{v}_t$$
+]
+
+<div style="clear:both;"></div>
+
+- Nominal이 이동하면 **error의 기준도 바뀜**
+
+$$\delta\mathbf{x}_t=(\hat{\mathbf{x}}_{t,j}-\hat{\mathbf{x}}_t)+\delta\mathbf{x}_{t,j}$$
+
+
+---
+# IESKF: Kalman Gain · Update
+
+.pull-left.f-85[
+#### ESKF
+
+$$\mathbf{K}_t=\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_t^\top(\mathbf{H}_t\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_t^\top+\mathbf{Q}_t)^{-1}$$
+]
+
+.pull-right.f-85[
+#### IESKF
+
+$$\mathbf{K}_{t,j}=\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_{t,j}^\top(\mathbf{H}_{t,j}\boldsymbol{\Sigma}_{t|t-1}\mathbf{H}_{t,j}^\top+\mathbf{Q}_t)^{-1}$$
+]
+
+<div style="clear:both;"></div>
+
+- ESKF의 error mean update
+
+$$\widehat{\delta\mathbf{x}}_t=\overline{\delta\mathbf{x}}_t+\mathbf{K}_t[\mathbf{z}_t-h(\hat{\mathbf{x}}_t,\mathbf{0})],\qquad \overline{\delta\mathbf{x}}_t=\mathbf{0}$$
+
+- IESKF는 **처음 prior와 현재 nominal의 차이**도 반영
+
+.f-90[
+$$\widehat{\delta\mathbf{x}}_{t,j}=\mathbf{K}_{t,j}[\mathbf{z}_t-h(\hat{\mathbf{x}}_{t,j},\mathbf{0})]-(\mathbf{I}-\mathbf{K}_{t,j}\mathbf{H}_{t,j})(\hat{\mathbf{x}}_{t,j}-\hat{\mathbf{x}}_t)$$
+]
+
+$$\hat{\mathbf{x}}_{t,j+1}=\hat{\mathbf{x}}_{t,j}+\widehat{\delta\mathbf{x}}_{t,j}$$
+
+.f-90[
+$j=0$에서는 $\hat{\mathbf{x}}_{t,0}=\hat{\mathbf{x}}_t$이므로 뒤의 보정항이 0: ESKF와 같은 첫 보정. 이후에는 새 nominal에서 $\mathbf{H}_{t,j}$와 $\mathbf{K}_{t,j}$를 다시 계산하며, $\boldsymbol{\Sigma}_{t|t-1}$는 유지.
+]
+
+---
+# IESKF: 그림으로 보면
+
+<img src="fig/ieskf_nominal_iteration_ipad.png" width="100%" style="display:block;max-height:400px;object-fit:contain;" alt="같은 시점에서 nominal을 보정하고 새 nominal에서 재선형화하여 error 보정량을 다시 추정하는 IESKF 반복 개념도">
+
+.f-90[
+- 화살표는 실제 error가 아니라, **현재 nominal에서 추정한 보정량** $\widehat{\delta\mathbf{x}}_{1,j}$
+- $j=2$에서 보정량이 충분히 작아 종료한 예: 최종 nominal은 $\hat{\mathbf{x}}_{1,3}$
+]
+
+???
+- $t=1$은 고정이고, $j$만 증가한다. 실제 상태 $\mathbf{x}_1$을 알고 움직이는 그림이 아니다.
+- 빨강: $\hat{\mathbf{x}}_{1,0}$에서 선형화하고 보정량을 추정하여 $\hat{\mathbf{x}}_{1,1}$로 이동한다.
+- 파랑: 새 기준 $\hat{\mathbf{x}}_{1,1}$에서 Jacobian과 gain을 다시 계산하고 다음 보정량을 추정한다.
+- 초록: $\hat{\mathbf{x}}_{1,2}$에서 구한 보정량을 반영한 뒤 종료 조건을 확인한다. $n=2$이면 최종 추정값은 $\hat{\mathbf{x}}_{1,3}$이다.
+- 접선은 측정 모델의 국소 선형화이고, 수평 화살표는 prior까지 반영한 상태 보정량이다. 접선만으로 실제값을 찾아가는 Newton root-finding 그림이 아니다.
+- 보정량이 줄어드는 예시일 뿐, 매 반복 감소나 실제값으로의 수렴을 보장하지 않는다.
+
+---
+# IESKF: 수렴 · Covariance · Reset
+
+.pull-left.f-90[
+#### Iteration 종료
+
+- 현재 보정량이 threshold 이하이면 종료
+- 최대 반복 횟수도 설정
+
+$$\|\widehat{\delta\mathbf{x}}_{t,n}\|=\|\hat{\mathbf{x}}_{t,n+1}-\hat{\mathbf{x}}_{t,n}\|<\epsilon$$
+
+$$\hat{\mathbf{x}}_{t|t}=\hat{\mathbf{x}}_{t,n}+\widehat{\delta\mathbf{x}}_{t,n}=\hat{\mathbf{x}}_{t,n+1}$$
+]
+
+.pull-right.f-90[
+#### Covariance Update
+
+- 반복 중에는 처음 prior covariance를 유지
+- 종료 시 마지막 Jacobian과 gain으로 한 번 갱신
+
+$$\boldsymbol{\Sigma}_{t|t}=(\mathbf{I}-\mathbf{K}_{t,n}\mathbf{H}_{t,n})\boldsymbol{\Sigma}_{t|t-1}$$
+]
+
+<div style="clear:both;"></div>
+
+- 최종 nominal에 보정량을 반영한 뒤, **새 nominal을 기준으로 error를 reset**
+
+$$\delta\mathbf{x}_t^{\mathrm{new}}=\delta\mathbf{x}_{t,n}-\widehat{\delta\mathbf{x}}_{t,n},\qquad \widehat{\delta\mathbf{x}}_t^{\mathrm{new}}=\mathbf{0}$$
+
+- 0이 되는 것은 error의 **추정 mean**. 불확실성은 남고, 덧셈 좌표에서는 reset으로 covariance가 변하지 않음
+
+.f-80[
+MAP·상세 유도·회전 좌표변환: [별도 부록](ieskf_appendix.html)
 ]
 
 <!-- xaringan::inf_mr('My_research/Error State Kalman Filter/eskf.Rmd') -->

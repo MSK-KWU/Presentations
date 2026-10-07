@@ -1,0 +1,26 @@
+Use case: scientific-educational / infographic-diagram.
+Asset type: one high-resolution landscape 16:9 teaching diagram for an academic xaringan paper-review slide.
+Primary request: Explain ONLY the first block of VolSplat Figure 2, "Multi-view Transformer for 2D Feature Extraction", in detailed, technically accurate iPad handwritten study-note style.
+
+Style and background: pure clean white canvas. Black Apple Pencil-like strokes, slightly irregular hand-drawn rounded boxes, confident curved arrowheads, informal but very legible handwritten English labels and math symbols. Bright royal blue ink for positional encoding and intra-view information, red ink for cross-view information. These are the user's study-diagram conventions: black main math/structure, blue and red explanatory arrows. Mostly line art, minimal light blue/red highlighting, no gradients or photorealistic objects, no decorative characters, no notebook grid, no device frame, no logos or watermarks. Wide margins, generous whitespace, large labels readable in a presentation.
+
+Composition: Two aligned horizontal bands. Upper band (about top 40%) is the overall image-to-feature flow. Lower band (about bottom 55%) expands ONE transformer block. Do not repeat the entire VolSplat pipeline or show depth/Gaussian/voxel modules.
+
+Upper band, clear left-to-right arrows:
+1. Three small hand-sketched views of the same simple room, labeled "I_1", "I_i", "I_N", with ellipsis suggesting N images.
+2. One shared processing box labeled "Shared CNN" and smaller "residual blocks"; all images use the same CNN weights.
+3. A small stack of feature grids labeled "F_i^cnn" and "C = 128".
+4. A large plus symbol in a circle. A distinct blue branch from a small sine/cosine-wave sketch labeled "2D sinusoidal PE" enters the plus circle; main CNN feature arrow also enters it. This must unmistakably show element-wise ADDITION, not concatenation. Beneath the blue branch write "64 for y + 64 for x = 128". Output of circle labeled "X_i = F_i^cnn + PE", with shape "(128, h, w)".
+5. A roomy black outlined box labeled "Multi-view Transformer" and small "6 blocks".
+6. Several output feature-grid sketches, labeled "F_1^mv ... F_N^mv"; small annotation "N feature maps, C = 128". Outputs remain separate per-view 2D feature maps, enhanced with cross-view information.
+
+Lower band: a dashed hand-drawn enclosing rectangle labeled "Inside ONE Transformer block". Draw a prominent main black horizontal path:
+"current view X_i" --> box "Self-attention" --> box "Cross-attention" --> box "FFN" --> "updated view i feature".
+All arrows between modules point left-to-right. Connect the upper Transformer box to this expansion with a thin dashed callout.
+Under Self-attention, in blue, label "Q, K, V: current view" and "within-view context".
+For Cross-attention, the main path from self-attention supplies Q. Label that incoming edge "Q: current view". Above the Cross-attention box draw two small separate neighbor feature grids "neighbor view j" and "neighbor view k"; one red bracket joins their features and a red arrow feeds the Cross-attention box labeled "K, V: neighbor views". Neighbors supply K and V, NEVER the current-view Q. Beneath this box write red "cross-view information".
+Under FFN, label "feature update". Small gray text inside lower container reads "LayerNorm + residual connections". This is a simplified block diagram, so do not draw fabricated exact residual wiring. No standalone FFN immediately after Self-attention: FFN is after Cross-attention.
+At lower-left or below the container, two tiny grid sketches show a regular window partition then a shifted window partition, connected by a blue arrow, labeled "window / shifted-window attention". Small note "C = 128; 1 attention head".
+Make scientific content coherent, arrow routing unambiguous, spelling exact: "Multi-view", "Transformer", "Self-attention", "Cross-attention", "sinusoidal", "residual blocks". Use clean handwritten Latin symbols for subscripts and superscripts. Avoid long paragraphs and extra equations. The repeated block annotation is exactly "6 blocks".
+Important conceptual invariants: input images are GIVEN; CNN extracts features, not new images. PE is generated at matching channel dimension and ADDED to CNN features. Self-attention is within one view; cross-attention reads neighboring views. Output is N enriched 2D maps, not one merged 3D scene.
+

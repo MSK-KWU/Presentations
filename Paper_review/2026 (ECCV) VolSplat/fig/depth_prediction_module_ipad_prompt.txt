@@ -1,0 +1,43 @@
+Use case: precise-object-edit.
+Asset type: a polished iPad-style educational diagram for a VolSplat paper-review presentation.
+Edit target: the user's MOST RECENT attached sketch. It shows RGB images feeding a CNN/multi-view Transformer branch and a DINOv2 branch, F_CNN and F_MV outputs, F_MV branching through a C_i cost-volume box AND directly to a Depth Prediction Module, F_mono entering that module, D_i as output, and a large empty question-mark callout below.
+Primary request: faithfully redraw and polish this sketch in neat iPad pen style, clarify the CNN/Transformer and plane-sweep labels, and fill the lower callout with the verified depth-prediction computation. Preserve the user's intended topology and the important direct F_MV bypass into the Depth Prediction Module.
+
+Style: pure white opaque background, smooth but slightly irregular thin black pen outlines, comfortably legible hand lettering, simple gridded feature-tensor cuboids, blue dimension/output annotations, restrained red for the direct F_MV bypass exactly as in the sketch. No gradients, realistic shading, paper texture, background grid, decorative icons, typeset infographic appearance, or watermark.
+Canvas: wide landscape approximately 2:1, high resolution, generous spacing. Main pipeline in the upper half, a dashed rounded zoom callout across the lower half. Short English labels and proper mathematical subscripts/superscripts. Title "Depth prediction: multi-view + monocular features".
+
+UPPER PIPELINE, scientific invariants:
+- Far left: a simple input box "RGB images I_1 ... I_N". Branch this input to the CNN/multi-view route and to a separate monocular route.
+- Main route: "Shared CNN" produces feature tensor "F_i^CNN". Split the CNN output: one BLACK arrow carries F_i^CNN directly to the Depth Prediction Module; another enters "PE + Multi-view Transformer" to produce "F_i^MV". This can be drawn as two stacked sub-boxes inside a single loose grouping outline to preserve the user's middle-block layout.
+- F_i^MV MUST split into TWO separate paths: a BLACK path into a clearly labeled "Plane-sweep" box, whose output is a gridded cost-volume cuboid "C_i"; and a RED bypass arrow carrying F_i^MV DIRECTLY into the Depth Prediction Module. Do not merge or omit the bypass. The plane-sweep box also receives a small auxiliary blue input "Known K, P" and a note "reference + neighbor features". There must be no RGB-to-cost-volume shortcut.
+- Monocular route: RGB images -> "DINOv2 ViT encoder" with small subtitle "pretrained" -> feature tensor "F_i^mono" -> Depth Prediction Module. This route is separate from the CNN/multi-view route.
+- The Depth Prediction Module must visibly receive FOUR inputs: C_i, F_i^CNN, F_i^MV (red bypass), and F_i^mono. Route arrows carefully so sources are unambiguous and do not cross through unrelated boxes.
+- Module output is a FLAT depth-map grid "D_i : (H, W)" with the blue note "one depth per pixel". The top feature tensors represent per-view features; the cost volume represents D candidate scores, not feature channels. A small footer on the main route can say "shown for view i; repeat for all views".
+
+LOWER ZOOM CALLOUT:
+Connect dashed callout lines from the Depth Prediction Module to the large lower box, replacing the sketch's empty "?" with the underlined label "Inside Depth Prediction Module".
+Draw a clear LEFT-TO-RIGHT chain of six compact boxes:
+"Channel concat" -> "Conv2d + 2D U-Net regressor" -> "Depth head + Softmax over D" -> "Expected inverse depth" -> "Upsample + refine" -> "Depth = 1 / refined q".
+The first box's inputs are listed compactly as "C_i, F_i^CNN, F_i^MV, F_i^mono".
+Below the Softmax box, show a tiny probability bar chart with label "p_m; sum p_m = 1" and shape "(h, w, D)".
+Below the expected-inverse-depth box, write "q_m = 1/d_m" and "q_hat = sum_m p_m q_m", with shape "(h, w)".
+At the chain's right end, a small depth-map icon or label "D_i (H, W)" reinforces the scalar-per-pixel output.
+Include one short note at the bottom of the lower callout: "Depth estimation repeats coarse-to-fine before full-resolution refinement".
+This is a CONCEPTUAL code-based overview: coarse/fine repetitions are summarized, and the per-scale regressor includes learned residual processing. Do not falsely draw a 3D U-Net here; it is a 2D U-Net. Softmax acts on learned depth-head logits, not directly on raw cost scores. Expected value is in INVERSE DEPTH, and the reciprocal is applied after upsampling/refinement.
+Avoid dense long prose, crowded arrows, missing tensor inputs, wrong feature superscripts, raw RGB cost matching, blank question-mark blocks, 6-block Transformer annotations, and unrelated 3D voxel/Gaussian stages.
+
+Final tensor dimension edit:
+Use case: precise-object-edit.
+Edit target: the generated "Depth prediction: multi-view + monocular features" hand-drawn overview.
+Keep ALL pipeline boxes, arrows, four input paths, direct RED F_MV bypass, mathematical inverse-depth computation, iPad style and layout unchanged. Fix ONLY the tensor dimension annotations. The three feature types can have DIFFERENT channel counts; they must not all be forced to the same C.
+
+Required corrections:
+1. Under F_i^CNN, replace "(H/4, W/4, C)" with "(h, w, C_CNN)" in blue. C_CNN means CNN channel count.
+2. Under F_i^MV, replace "(H/4, W/4, C)" with "(h, w, C_MV)" in blue.
+3. Under F_i^mono, replace "(H/4, W/4, C)" with "(h, w, C_mono)" in blue.
+4. Under the cost-volume C_i cuboid, replace "(H/4, W/4, D)" with "(h, w, D)". Preserve its D candidate depths note.
+5. In the LOWER zoom callout, under Channel concat, replace the scientifically incorrect "(h, w, D + 3C)" with "(h, w, C_in)".
+6. Add a concise, readable small note along the lower callout's bottom area: "C_in = D + C_CNN + C_MV + C_mono". Ensure it does not overlap the existing coarse-to-fine note; place it in adjacent free space or on a new line if needed. This notation represents channel CONCAT, not element-wise addition.
+7. At the LOWER RIGHT final output depth-map icon, replace "D_i (h, w)" with "D_i (H, W)". It is after upsampling/refinement and must have full input-image resolution. Preserve the TOP RIGHT "D_i: (H, W)" label, which is already correct.
+8. Keep the intermediate probability shape "(h, w, D)", inverse-depth estimate shape "(h, w)", and upsampled/refined inverse-depth shape "(H, W)" as they are. Keep regressor hidden channel C_r.
+Maintain legibility and all exact feature superscripts. Minimal spacing changes for the longer labels are allowed. No additional modules, no removed bypass, no new scope, no gradients or watermark. White opaque background and wide 2:1 composition.

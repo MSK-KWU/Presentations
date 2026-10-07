@@ -9,6 +9,7 @@ This is a project file of presentations started from 2025.01.13
 
 | 발표 자료 | 링크 |
 |---|---|
+| VolSplat (ECCV 2026) | [슬라이드 보기](https://msk-kwu.github.io/Presentations/Paper_review/2026%20%28ECCV%29%20VolSplat/VolSplat_presentation.html) |
 | RMGS-SLAM (arXiv 2026) | [슬라이드 보기](https://msk-kwu.github.io/Presentations/Paper_review/2026%20%28arXiv%29%20RMGS-SLAM/rmgs_slam.html) |
 | f4splat (arXiv 2026) | [슬라이드 보기](https://msk-kwu.github.io/Presentations/Paper_review/2026%20%28arXiv%29%20f4splat/f4splat.html) |
 | GSO-SLAM (RA-L 2026) | [슬라이드 보기](https://msk-kwu.github.io/Presentations/Paper_review/2026%20%28RA-L%29%20GSO-SLAM/GSO_SLAM_presentation.html) |

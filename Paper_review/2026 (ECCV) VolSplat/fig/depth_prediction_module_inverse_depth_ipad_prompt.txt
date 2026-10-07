@@ -1,0 +1,35 @@
+Use case: precise-object-edit.
+Asset type: an existing scientific presentation diagram, edited in the user's iPad handwritten drawing style.
+Input image 1 is the edit target. Edit this image faithfully.
+
+Primary request: widen the horizontal layout, remove the duplicated output grid at the far right of the LOWER "Inside Depth Prediction Module" panel, and explain expected inverse depth with larger, more detailed equations in the freed space.
+
+Composition:
+- Produce an opaque white, very wide landscape canvas, approximately 2.3:1 aspect ratio. Add usable space on both the left and right, avoiding large empty margins.
+- Preserve the entire upper overview: RGB images -> Shared CNN -> CNN features; PE + Multi-view Transformer -> MV features; Plane-sweep cost volume with known K,P; the separate DINOv2 monocular feature branch; all arrows entering the Depth Prediction Module; and the ONE final top-right Di(H,W) output grid. Retain the red direct MV-feature arrow, blue tensor labels and all feature cuboids.
+- Retain the original thin, slightly irregular black handwritten boxes, arrows, handwriting and blue mathematical annotations. No polished infographic, no gradients, no paper texture. Expand and rearrange the LOWER panel to use the increased width.
+- In the lower panel retain this left-to-right chain: four inputs -> Channel concat -> Conv2d + 2D U-Net regressor -> Depth head + Softmax over D -> Expected inverse depth -> Upsample + refine -> Reciprocal conversion.
+- Delete ONLY the final lower Di grid and its duplicated output label. End the lower chain at the reciprocal conversion box. The upper Di grid remains.
+- Allocate especially generous width to the Expected inverse depth box; keep earlier blocks compact but legible. Do not shrink the formulas into tiny annotations.
+
+Exact scientific content, rendered as real readable handwritten mathematics with fraction bars and subscripts (not literal LaTeX commands):
+- Channel concat: Cin = D + C_CNN + C_MV + C_mono; shape (h,w,Cin).
+- Regressor: "Conv2d + 2D U-Net"; shape (h,w,Cr).
+- Depth head: "Depth head + Softmax over D"; probabilities p_m(u,v); sum from m=1 to D of p_m(u,v) = 1; shape (h,w,D).
+- A wider box headed "Expected inverse depth", with these three lines prominent:
+  q_m(u,v) = 1 / d_m(u,v)
+  q_hat(u,v) = sum_{m=1}^{D} p_m(u,v) q_m(u,v)
+  q_hat(u,v) = p_1(u,v)/d_1(u,v) + ... + p_D(u,v)/d_D(u,v)
+  Under it write "D candidates -> 1 inverse-depth value per pixel" and shape "(h,w)" in blue.
+- Next box "Upsample + refine", with "q_refined : (H,W)" and a short "learned residual" annotation.
+- Final box "Convert to depth", with a LARGE formula Di(u,v) = 1 / q_refined(u,v). No grid after this box.
+- Under the expected-inverse-depth region, add a compact readable one-pixel example in blue, explicitly headed "Example BEFORE refinement":
+  q = (0.25, 0.50, 0.75),  p = (0.10, 0.70, 0.20)
+  q_hat = 0.10*0.25 + 0.70*0.50 + 0.20*0.75 = 0.525
+  d_coarse = 1/0.525 approximately 1.90
+  Use multiplication signs rather than literal asterisks; this example is the coarse depth, NOT the final refined depth.
+- Preserve the footer: "Depth estimation repeats coarse-to-fine before full-resolution refinement."
+
+Accuracy:
+The depth network computes softmax on learned depth-head logits; the expected quantity is inverse depth q=1/d. Do NOT replace it with sum p_m*d_m, argmax, average across channels, or Gaussian parameters. Spatial shapes h,w are low-resolution and H,W are full-resolution. Preserve all upper diagram connections. No extra duplicated final output, no new lower depth grid.
+

@@ -1,0 +1,150 @@
+{
+    "source":  "https://arxiv.org/pdf/2509.19297v3",
+    "capture_method":  "Windows.Data.Pdf rasterization of original PDF, followed by lossless PNG crops",
+    "assets":  [
+                   {
+                       "file":  "fig_4.png",
+                       "label":  "Fig. 4 - RealEstate10K",
+                       "pdf_page":  8,
+                       "source_page_width":  5000,
+                       "source_page_height":  7071,
+                       "crop_pixels":  [
+                                           554,
+                                           539,
+                                           4446,
+                                           3521
+                                       ],
+                       "width":  3892,
+                       "height":  2982,
+                       "bytes":  8969027
+                   },
+                   {
+                       "file":  "table_1.png",
+                       "label":  "Table 1 - RealEstate10K",
+                       "pdf_page":  7,
+                       "source_page_width":  5000,
+                       "source_page_height":  7071,
+                       "crop_pixels":  [
+                                           550,
+                                           1187,
+                                           4423,
+                                           2454
+                                       ],
+                       "width":  3873,
+                       "height":  1267,
+                       "bytes":  277339
+                   },
+                   {
+                       "file":  "fig_5.png",
+                       "label":  "Fig. 5 - ScanNet",
+                       "pdf_page":  9,
+                       "source_page_width":  5000,
+                       "source_page_height":  7071,
+                       "crop_pixels":  [
+                                           554,
+                                           535,
+                                           4446,
+                                           3191
+                                       ],
+                       "width":  3892,
+                       "height":  2656,
+                       "bytes":  6426935
+                   },
+                   {
+                       "file":  "table_2.png",
+                       "label":  "Table 2 - ScanNet",
+                       "pdf_page":  10,
+                       "source_page_width":  5000,
+                       "source_page_height":  7071,
+                       "crop_pixels":  [
+                                           573,
+                                           2689,
+                                           2414,
+                                           3454
+                                       ],
+                       "width":  1841,
+                       "height":  765,
+                       "bytes":  88710
+                   },
+                   {
+                       "file":  "fig_6.png",
+                       "label":  "Fig. 6 - ACID",
+                       "pdf_page":  9,
+                       "source_page_width":  5000,
+                       "source_page_height":  7071,
+                       "crop_pixels":  [
+                                           554,
+                                           3625,
+                                           4446,
+                                           4821
+                                       ],
+                       "width":  3892,
+                       "height":  1196,
+                       "bytes":  2717450
+                   },
+                   {
+                       "file":  "table_3.png",
+                       "label":  "Table 3 - ACID",
+                       "pdf_page":  10,
+                       "source_page_width":  5000,
+                       "source_page_height":  7071,
+                       "crop_pixels":  [
+                                           2559,
+                                           2793,
+                                           4390,
+                                           3577
+                                       ],
+                       "width":  1831,
+                       "height":  784,
+                       "bytes":  88938
+                   },
+                   {
+                       "file":  "fig_7.png",
+                       "label":  "Fig. 7 - Gaussian density",
+                       "pdf_page":  10,
+                       "source_page_width":  5000,
+                       "source_page_height":  7071,
+                       "crop_pixels":  [
+                                           554,
+                                           516,
+                                           4446,
+                                           1439
+                                       ],
+                       "width":  3892,
+                       "height":  923,
+                       "bytes":  2313120
+                   },
+                   {
+                       "file":  "table_4.png",
+                       "label":  "Table 4 - Voxel size",
+                       "pdf_page":  11,
+                       "source_page_width":  5000,
+                       "source_page_height":  7071,
+                       "crop_pixels":  [
+                                           595,
+                                           1093,
+                                           4405,
+                                           1798
+                                       ],
+                       "width":  3810,
+                       "height":  705,
+                       "bytes":  123622
+                   },
+                   {
+                       "file":  "table_5.png",
+                       "label":  "Table 5 - Sparse 3D decoder",
+                       "pdf_page":  11,
+                       "source_page_width":  5000,
+                       "source_page_height":  7071,
+                       "crop_pixels":  [
+                                           809,
+                                           2449,
+                                           4161,
+                                           3154
+                                       ],
+                       "width":  3352,
+                       "height":  705,
+                       "bytes":  121811
+                   }
+               ]
+}

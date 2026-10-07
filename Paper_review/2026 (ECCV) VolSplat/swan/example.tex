@@ -1,0 +1,238 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+  ignorenonframetext,
+]{beamer}
+\usepackage{pgfpages}
+\setbeamertemplate{caption}[numbered]
+\setbeamertemplate{caption label separator}{: }
+\setbeamercolor{caption name}{fg=normal text.fg}
+\beamertemplatenavigationsymbolsempty
+% Prevent slide breaks in the middle of a paragraph
+\widowpenalties 1 10000
+\raggedbottom
+\setbeamertemplate{part page}{
+  \centering
+  \begin{beamercolorbox}[sep=16pt,center]{part title}
+    \usebeamerfont{part title}\insertpart\par
+  \end{beamercolorbox}
+}
+\setbeamertemplate{section page}{
+  \centering
+  \begin{beamercolorbox}[sep=12pt,center]{part title}
+    \usebeamerfont{section title}\insertsection\par
+  \end{beamercolorbox}
+}
+\setbeamertemplate{subsection page}{
+  \centering
+  \begin{beamercolorbox}[sep=8pt,center]{part title}
+    \usebeamerfont{subsection title}\insertsubsection\par
+  \end{beamercolorbox}
+}
+\AtBeginPart{
+  \frame{\partpage}
+}
+\AtBeginSection{
+  \ifbibliography
+  \else
+    \frame{\sectionpage}
+  \fi
+}
+\AtBeginSubsection{
+  \frame{\subsectionpage}
+}
+\usepackage{lmodern}
+\usepackage{amssymb,amsmath}
+\usepackage{ifxetex,ifluatex}
+\ifnum 0\ifxetex 1\fi\ifluatex 1\fi=0 % if pdftex
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math}
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usetheme[]{AnnArbor}
+\usecolortheme{dolphin}
+\usefonttheme{structurebold}
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\IfFileExists{bookmark.sty}{\usepackage{bookmark}}{\usepackage{hyperref}}
+\hypersetup{
+  pdftitle={🦢 Xaringan SWAN Theme},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+\urlstyle{same} % disable monospaced font for URLs
+\newif\ifbibliography
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.77,0.63,0.00}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{-\maxdimen} % remove section numbering
+
+\title{🦢 Xaringan SWAN Theme}
+\author{}
+\date{\vspace{-2.5em}}
+
+\begin{document}
+\frame{\titlepage}
+
+\begin{frame}
+class: inverse, center, middle \# 🔤 Fonts
+\end{frame}
+
+\begin{frame}{Font Size (폰트 크기)}
+\protect\hypertarget{font-size-uxd3f0uxd2b8-uxd06cuxae30}{}
+이것은 본문 폰트 크기 입니다. This is the body font size.
+
+.pull-left{[} .tiny{[} 60\%: tiny{]}
+
+.scriptsize{[} 80\% scriptsize{]}
+
+.footnotesize{[} 100\% footnotesize{]}
+
+.small{[} 120\%: small{]}
+
+.normalsize{[} 140\%: normalsize{]}
+
+.large{[} 160\%: large{]}
+
+.Large{[} 180\%: Large{]} {]}
+
+.pull-right{[} .LARGE{[} 220\%: LARGE{]}
+
+.huge{[} 260\%: huge{]}
+
+.Huge{[} 300\%: Huge{]} {]}
+\end{frame}
+
+\begin{frame}{Text Color}
+\protect\hypertarget{text-color}{}
+.pull-left{[} - .red{[}red{]}, .green{[}green{]}, .blue{[}blue{]} -
+.bc-black{[}.yellow{[}yellow{]}{]}, .cyan{[}cyan{]},
+.magenta{[}magenta{]}
+
+\begin{itemize}
+\item
+  .black{[}black{]}, .bc-black{[}.white{[}white{]}{]}
+\item
+  .gray{[}gray{]}, .darkgray{[}darkgray{]}, .silver{[}silver{]}
+\item
+  .darkred{[}darkred{]}, .darkgreen{[}darkgreen{]},
+  .darkblue{[}darkblue{]}
+\item
+  .khaki{[}khaki{]}, .darkkhaki{[}darkkhaki{]}, .gold{[}gold{]},
+  .orange{[}orange{]},
+\item
+  .darkcyan{[}darkcyan{]}
+\item
+  .pink{[}pink{]}, .purple{[}purple{]} {]}
+\end{itemize}
+
+.pull-right{[} - .white{[}.bc-red{[}bc-red{]}, .bc-green{[}bc-green{]},
+.bc-blue{[}bc-blue{]}{]} - .bc-yellow{[}bc-yellow{]},
+.white{[}.bc-cyan{[}bc-cyan{]}, .bc-magenta{[}bc-magenta{]}{]} -
+.white{[}.bc-black{[}bc-black{]}, .bc-gray{[}bc-gray{]}{]},
+.black{[}.bc-white{[}bc-white{]}{]}{]}
+\end{frame}
+
+\begin{frame}{Other Font Test}
+\protect\hypertarget{other-font-test}{}
+\begin{itemize}
+\tightlist
+\item
+  .noto{[}Almost before we knew it, we had left the ground.{]}
+\item
+  .nanum-gothic{[}Almost before we knew it, we had left the ground.{]}
+\item
+  .do-hyeon{[}Almost before we knew it, we had left the ground.{]}
+\item
+  .dokdo{[}Almost before we knew it, we had left the ground.{]}
+\item
+  .jua{[}Almost before we knew it, we had left the ground.{]}
+\item
+  .black-han{[}Almost before we knew it, we had left the ground.{]}
+\item
+  .sunflower{[}Almost before we knew it, we had left the ground.{]}
+\item
+  .gamja-flower{[}Almost before we knew it, we had left the ground.{]}
+\item
+  .poor-story{[}Almost before we knew it, we had left the ground.{]}
+\end{itemize}
+
+.footer-right{[}\url{https://fonts.google.com/}{]}
+\end{frame}
+
+\begin{frame}[fragile]{Code}
+\protect\hypertarget{code}{}
+This is an \texttt{inline\ code} in a scentense.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\CommentTok{\# This is a comment}
+\NormalTok{a }\OperatorTok{=} \DecValTok{100}
+\NormalTok{b }\OperatorTok{=} \DecValTok{200}
+\BuiltInTok{print}\NormalTok{(a}\OperatorTok{+}\NormalTok{b)}
+\end{Highlighting}
+\end{Shaded}
+\end{frame}
+
+\end{document}

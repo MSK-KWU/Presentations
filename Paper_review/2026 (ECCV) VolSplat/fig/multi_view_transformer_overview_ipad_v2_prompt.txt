@@ -1,0 +1,12 @@
+Use case: precise-object-edit.
+Asset type: iPad-style handwritten scientific slide diagram.
+Input image: edit target, the existing cropped VolSplat multi-view feature extraction overview.
+Primary request: fix the ambiguous tensor shape annotations around element-wise PE addition. The drawing currently labels the CNN feature with separate "C = 128" and "(h, w)", but labels only Xi with "(128, h, w)", which misleadingly suggests that addition introduced the 128 channels.
+Change only the tensor shape labels and the short addition annotation:
+1. Under the CNN feature stack F_i^cnn, REPLACE the two separate lines "C = 128" and "(h, w)" with one explicit, clear label "shape: (128, h, w)".
+2. Keep the output formula "X_i = F_i^cnn + PE" above the post-addition feature stack, but make its dimension caption explicitly read "shape: (128, h, w)".
+3. In the blue 2D sinusoidal PE branch, add a clearly associated blue label "shape: (128, h, w)". This refers to the COMPLETE PE tensor, not each sin or cos term. Place it below the existing "64 for y + 64 for x = 128" note or in adjacent free white space.
+4. Keep "element-wise addition" near the plus sign, and append the short blue line "shape unchanged".
+Scientific constraint: F_i^cnn, the full PE tensor, and X_i ALL have exactly the same (128, h, w) shape. The 128 feature channels already exist before the addition. Do not change any feature channel count or suggest concatenation. PE is 2D positional encoding, not camera pose P.
+Preserve every other component: title, input room sketches, all image and feature indices, arrow connections, Shared CNN and Multi-view Transformer boxes and their text, 6 blocks, sine/cosine sketches, output notes, original black and blue pen style, pure white opaque background, wide 3:1 framing, and legible iPad-style handwriting. Allow minimal local spacing adjustments so the longer shape labels fit without overlap.
+Avoid: adding internal Transformer block details, attention diagrams, red ink, cropped text, new concepts or decorations, watermarks.

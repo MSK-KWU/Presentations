@@ -1,0 +1,38 @@
+Use case: precise-object-edit.
+Asset type: iPad-style VolSplat paper-review slide diagram, replacing the existing first plane-sweep explanation image.
+Input image 1: EDIT TARGET and handwriting/color style reference, the existing "Plane-sweep (1/2)" three-panel diagram.
+Input image 2: USER-PROVIDED GEOMETRIC COMPOSITION REFERENCE, plane_sweep.png. Use its arrangement of a central reference image plane, a fixed reference ray crossing parallel depth planes, and two flanking sensor views with rays to candidate points. Reinterpret it scientifically for VolSplat's reference view i and neighboring views j,k.
+
+Primary request: redraw image 1 around one LARGE, clear 3D perspective plane-sweep scene inspired by image 2, with three short numbered explanatory callouts. Preserve the iPad lecture-note style, but replace the small side cross-section / separate panels with the much clearer spatial geometry from image 2.
+Canvas: wide landscape approximately 2:1, high resolution, pure white opaque background. Black thin slightly irregular pen outlines and hand lettering, blue reference ray/pixel, red neighboring-view projections. Very light gray sparse hatching for hypothesis planes, transparent enough that rays and points remain visible. No realistic rendering or heavy shading.
+
+Underlined top title: "Plane-sweep (1/2): depth hypotheses and warping".
+On the left, reserve a compact text column with three circled numbered steps:
+"1. Fix reference pixel p_i"
+"2. Try depths d_1, d_2, d_3"
+"3. Project into neighbor views"
+Under step 3: "Sample features using known K and poses P".
+
+Most of the canvas contains the large geometric scene:
+- Reference camera center O_i near bottom center, black point or simple pinhole camera marker, labeled "Reference camera i". In front of it, draw a small tilted gridded reference image/feature plane labeled "Reference view F_i". Mark exactly ONE blue reference pixel p_i on this plane.
+- A SINGLE fixed blue ray begins at O_i, passes through p_i, and extends upward into the scene. It crosses exactly THREE parallel candidate planes labeled d_1, d_2, d_3, ordered from near to far along that ray. These candidate planes are PARALLEL TO THE REFERENCE IMAGE PLANE, with a consistent quadrilateral orientation in perspective.
+- At each ray-plane intersection draw one blue hypothesis point X(d_1), X(d_2), X(d_3). The three points MUST be collinear with O_i and p_i. Label nearby "Same ray, different depth hypotheses". Candidate planes are possible depths, not observed scene surfaces.
+- Place neighbor camera center O_j near lower left of the geometric scene and O_k near lower right. For each neighbor, a small tilted gridded image/feature plane lies BETWEEN its camera center and the candidate scene points, as in the user-provided reference. Label the planes "Neighbor view F_j" and "Neighbor view F_k".
+- For EACH neighbor center, draw three thin red straight projection rays from that center through the three hypothesis points. Each ray meets that neighbor's image plane at a DISTINCT red sampling point. Ray endpoints, centers and projected points must line up coherently. The reference pixel p_i stays fixed while these neighboring-view coordinates differ for d_1, d_2, d_3.
+- On the left neighbor plane, label the three distinct red samples concisely "p_j(d_1)", "p_j(d_2)", "p_j(d_3)". On the right neighbor plane use one concise grouping label "p_k(d_m)" to avoid clutter.
+- A small red annotation states "Sample F_j and F_k at projected positions". A blue note beside the reference plane states "Compare with F_i(p_i)".
+
+Bottom caption: "Repeat for every reference pixel and all D candidate depths".
+Constraints: keep English lettering readable and prevent overlaps. Use O_i/O_j/O_k for camera centers to avoid confusing feature channel C with camera centers. The fixed reference ray and all projected neighboring rays must tell a coherent geometric story. Use the user's image only as a layout/geometry reference; do not copy its misleading labels verbatim. Do not include CNN, Transformer, dot-product equations, cost-volume construction or depth module on this page. Those remain on the next slide. No new internal-block details, no watermark.
+
+Final geometric accuracy edit:
+Use case: precise-object-edit.
+Input image 1: EDIT TARGET, the latest iPad-style plane-sweep 3D geometry drawing.
+Input image 2: user's geometric reference; use the upright, mutually parallel depth-plane orientation from this reference.
+
+Fix only the orientation of the three depth hypothesis planes and, if needed, the tiny alignment of the left projected sample points. Preserve all other labels, cameras, rays, colors, steps and overall composition.
+Critical geometric correction: the three current candidate planes d_1, d_2, d_3 look like horizontal floor tiles. They must instead be UPRIGHT IMAGE-LIKE PLANES, parallel to the upright reference image/feature plane F_i at bottom center. Draw each as a large, lightly gridded, transparent vertical quadrilateral. Its left and right edges are predominantly VERTICAL, and its top and bottom edges have the SAME slight perspective tilt as those of reference plane F_i. All three candidate planes have the SAME orientation, receding and stacking upward into the scene just as in input image 2.
+Place d_1's upright plane around the existing fixed blue X(d_1), d_2's around X(d_2), and d_3's around X(d_3). Keep those blue intersection points at their existing positions on the single fixed reference ray. Each point should lie inside its associated plane. Planes can overlap in projection; use very light gray hatching/transparent wireframes so all colored rays and blue points remain visible. Move only the d_1/d_2/d_3 captions as needed to sit clearly at their respective right edges.
+Preserve the reference camera O_i, reference image plane F_i and blue pixel p_i. The candidate planes must visually read as PARALLEL to F_i, not perpendicular to it.
+Preserve the neighboring camera O_j at lower left and O_k at lower right and their image planes. Ensure each red projection line is STRAIGHT from its neighbor camera center to its respective blue X(d_m), with its red sample point EXACTLY on that line where it intersects the neighboring image plane. In particular, remove any subtle kink around the left neighbor's red dots by minimally adjusting those dots, keeping their d_1/d_2/d_3 association. Do not add rays to extra points.
+All original English text, formulas, numbered steps and footer remain the same. Original black iPad pen linework and handwriting, blue reference annotations, red projections, opaque white background, wide 2:1 composition. No cost volume or network details, no new decorations, no watermark.

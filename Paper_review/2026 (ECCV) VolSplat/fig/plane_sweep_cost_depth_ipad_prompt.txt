@@ -1,0 +1,34 @@
+Use case: scientific-educational.
+Asset type: a NEW hand-drawn diagram for a Korean researcher's VolSplat paper-review slides, image 2 of 2.
+Subject: Plane-sweep steps 4, 5 and 6: feature similarity, cost volume, and learned depth prediction.
+Style: neat iPad lecture notes, thin slightly irregular black pen outlines and hand lettering on pure white opaque background. Blue marks the reference pixel/features, red marks sampled neighboring features and the candidate-depth axis. Simple gridded cuboids and feature strips. No gradients, realistic shading, background grid, paper texture, glossy graphics, typeset fonts, decorations, or watermark.
+Composition: wide landscape approximately 2.5:1, high resolution, THREE spacious panels arranged LEFT TO RIGHT, circled step numbers, clear arrows between panels. Large legible English labels, few short explanatory notes. Underlined handwritten title: "Plane-sweep (2/2): matching scores to depth".
+
+STEP 4, title "4. Compare feature vectors":
+Show a blue horizontal feature strip labeled "Reference feature f_i" and a red horizontal feature strip labeled "Warped neighbor feature f_j,m". Both have a dimension bracket labeled "C = 128 values". Their two arrows meet a dot-product symbol / compact computation box, producing ONE scalar "s_j,m".
+Write the short formula legibly: "s_j,m = dot(f_i, f_j,m) / sqrt(C)".
+Below: "Average scores over neighboring views".
+A small note: "One matching score for one pixel and one depth hypothesis".
+Do not show feature-channel values as depth hypotheses.
+
+STEP 5, title "5. Stack along depth":
+Show three small h-by-w matching-score grids labeled "d_1", "d_2", "d_3", with an ellipsis to indicate D total candidates. Mark the SAME spatial cell in blue on each grid. Use an arrow to a connected gridded 3D cuboid labeled "Cost volume C_i".
+The cuboid's front face has axes "h" and "w"; front-to-back axis MUST be labeled "D depth candidates", never "128 channels". Write shape "(h, w, D)" clearly beneath. Mark the depth-wise column at one spatial position and annotate "One pixel: D matching scores".
+Keep the drawings visually distinct from the C-channel feature tensor on the preceding image.
+
+STEP 6, title "6. Predict a depth map":
+Show cost-volume input entering a box labeled "Depth module". A secondary branch entering the same box is labeled "Monocular + CNN/MV features". Then a box or annotation "Softmax over D candidates" produces a small probability bar chart labeled p_m, with candidate labels q_1, q_2, q_3 and ellipsis.
+Write "q_m = 1 / d_m" and "inverse-depth estimate: q_hat = sum_m p_m q_m" neatly, explaining the actual VolSplat implementation.
+After this estimate, a short arrow labeled "Upsample + refine" leads to conversion "depth = 1 / refined q", and then a large FLAT gridded depth-map rectangle labeled "D_i: (H, W)". Highlight one output spatial cell and label "One depth per pixel". The output depth map is one scalar per pixel, NOT a D-channel volume.
+The ordering must be accurate: learned probabilities -> expected inverse depth -> upsampling/refinement -> reciprocal -> full-resolution depth map. Do not imply simply taking argmax of raw matching scores is the complete model.
+
+Bottom common note, clear and readable: "C = feature channels; D = depth candidates. Repeat for each reference view."
+Accuracy constraints: h = H/p and w = W/p; image geometry stays 2D until later lifting. Cost-volume D axis is distinct from the feature C axis. Keep this drawing self-contained without showing 3D voxel fusion or Gaussians. Favor readability over cramming extra formulas.
+
+Final accuracy edit:
+Use case: precise-object-edit.
+Edit target: the hand-drawn Plane-sweep (2/2) diagram.
+Keep the entire diagram, all text, formulas, panels, and style intact EXCEPT these two small accuracy fixes:
+1. In STEP 5's cost-volume cuboid, remove the blue shading that covers an entire vertical h-column of the FRONT face and the broad top stripe. This wrongly marks multiple spatial pixels. Highlight ONLY ONE front-face grid cell at a fixed spatial (x,y) location (the existing blue dot at the front center can mark it). From that single cell, draw a thin DASHED BLUE line or a chain of small blue dots extending into the cuboid along its front-to-back depth-candidate direction, PARALLEL to the red "D depth candidates" axis. It represents the D scores for this ONE fixed pixel, not a vertical column over h. Use the wireframe view to make this interior depth-directed path visible. Leave other front-face rows and columns unshaded. Point the existing "One pixel: D matching scores" annotation to this highlighted depth-directed line.
+2. In STEP 6's probability chart, remove the stray "d_m" label and small arrow above the tallest bar. Preserve p_m on the vertical axis, q_1/q_2/q_3 and ellipsis on the horizontal axis, all bars, and the q_m = 1/d_m formula below.
+Invariants: all other pixels, caption text, shapes, formulas and geometry unchanged in meaning. Retain original iPad handwriting, black outlines, blue/red annotations, white opaque background, wide 2.5:1 composition. No new labels or stages.

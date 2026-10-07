@@ -1,0 +1,12 @@
+Use case: precise-object-edit.
+Asset type: hand-drawn scientific presentation diagram for a VolSplat paper review.
+Input image: edit target, the existing iPad-style multi-view Transformer diagram.
+Primary request: remove the ENTIRE lower explanatory section beginning "Inside ONE Transformer block", including the dashed enclosing box, Self-attention / Cross-attention / FFN pipeline, neighboring view illustrations, LayerNorm and residual note, both window partition diagrams and all lower text. Also remove the two dashed callout connector lines that descend from the upper Multi-view Transformer box.
+Keep ONLY the upper overview: N input images -> Shared CNN -> CNN feature map -> element-wise addition of 2D sinusoidal PE -> Xi -> Multi-view Transformer (6 blocks) -> N enhanced feature maps.
+Reframe and enlarge this retained upper diagram into a tightly framed wide landscape image, approximately 3:1 aspect ratio. All retained elements should occupy the canvas clearly, with modest white margins and no large empty lower area. Preserve the original left-to-right order, room sketches, stacked feature grids, arrows, black hand lettering, blue PE annotations, and pure white opaque background.
+Retain the upper title "Multi-view Transformer for 2D Feature Extraction".
+Retain accurate mathematical labels I_1, I_i, I_N; F_i^cnn; C = 128; (h, w); X_i = F_i^cnn + PE; (128, h, w); F_1^mv, F_i^mv, F_N^mv.
+Retain box text "Shared CNN", "residual blocks", "(same weights for all views)", "Multi-view Transformer", "6 blocks".
+Retain PE branch text "2D sinusoidal PE", "sin(·)", "cos(·)", "64 for y + 64 for x = 128", and "element-wise addition".
+Retain input and output notes about N views of the same scene and N per-view feature maps enhanced with cross-view information.
+Constraints: edit only by removing the lower section and reframing/enlarging the upper content. Preserve scientific meaning and the user's iPad handwriting style. All text legible and correctly spelled. No extra components, no internal block details, no red annotations, no dashed callout remnants, no watermark.
